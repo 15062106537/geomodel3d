@@ -407,6 +407,10 @@
     #map-container {
       z-index: 1;
       display: none;
+      background: #f5f5f0;
+    }
+    #map-container .leaflet-container {
+      background: #f5f5f0 !important;
     }
     #canvas-container {
       z-index: 0;
@@ -722,7 +726,7 @@
 
     /* Leaflet overrides */
     .leaflet-container {
-      background: #060d10 !important;
+      background: #f5f5f0 !important;
     }
     .leaflet-control-zoom a {
       background: var(--glass-bg) !important;
@@ -3795,50 +3799,18 @@
         attributionControl: true
       });
 
-      // ===== 多源瓦片：自动切换，确保地图能加载 =====
-      var tileSources = [
-        { url: 'https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png', opt: { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> | <a href="https://wikimediafoundation.org/">Wikimedia</a>' } },
-        { url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', opt: { subdomains: ['a','b','c'], maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' } },
-        { url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', opt: { subdomains: ['a','b','c','d'], maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> | <a href="https://carto.com/">CARTO</a>' } }
-      ];
+      // ===== 白色底图背景（瓦片未加载时的兜底） =====
+      map.getContainer().style.background = '#f5f5f0';
 
-      var tileIdx = 0;
-      var tileLayer = null;
-      var tileLoaded = false;
-      var tileTimeout = null;
-
-      function tryTile() {
-        if (tileIdx >= tileSources.length) {
-          console.warn('[Map] 所有瓦片源均失败，将使用默认空地图');
-          return;
+      // ===== 高德地图浅色瓦片（含道路、城市标注） =====
+      var tileLayer = L.tileLayer(
+        'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
+          subdomains: ['1', '2', '3', '4'],
+          maxZoom: 18,
+          attribution: '&copy; 高德地图'
         }
-        if (tileLayer) { map.removeLayer(tileLayer); }
-        if (tileTimeout) { clearTimeout(tileTimeout); }
-        tileLoaded = false;
-
-        var src = tileSources[tileIdx];
-        console.log('[Map] 尝试瓦片源 #' + (tileIdx + 1) + ':', src.url.substring(0, 50) + '...');
-        tileLayer = L.tileLayer(src.url, src.opt).addTo(map);
-
-        tileLayer.on('tileload', function() {
-          if (!tileLoaded) {
-            tileLoaded = true;
-            console.log('[Map] 瓦片源 #' + (tileIdx + 1) + ' 加载成功!');
-            if (tileTimeout) clearTimeout(tileTimeout);
-          }
-        });
-
-        // 5秒后如果还没加载成功，换下一个源
-        tileTimeout = setTimeout(function() {
-          if (!tileLoaded) {
-            console.warn('[Map] 瓦片源 #' + (tileIdx + 1) + ' 超时，切换下一个');
-            tileIdx++;
-            tryTile();
-          }
-        }, 5000);
-        tileIdx++;
-      }
-      tryTile();
+      );
+      tileLayer.addTo(map);
 
       // 比例尺控件
       L.control.scale({
@@ -3849,13 +3821,6 @@
 
       // ===== 加载中国真实GeoJSON边界 =====
       loadChinaGeoJSON();
-
-      // 遍历所有省份的城市，添加地图标记（已关闭，仅通过工作记录标记城市）
-      // Object.keys(CHINA_REGIONS).forEach(function(province) {
-      //   CHINA_REGIONS[province].cities.forEach(function(city) {
-      //     addCityMarkerToMap({ name: city.name, lat: city.lat, lng: city.lng, province: province });
-      //   });
-      // });
 
       // ===== 地图点击空白区域 → 添加自定义工作记录 =====
       map.on('click', function(e) {
@@ -3879,13 +3844,13 @@
         .then(function(data) {
           if (data && data.features) {
             chinaGeoLoaded = true;
-            // 省份填充层
+            // 省份填充层（白色背景适配）
             L.geoJSON(data, {
               style: function(feature) {
                 return {
-                  fillColor: 'rgba(22, 42, 48, 0.35)',
-                  fillOpacity: 0.35,
-                  color: 'rgba(45, 212, 191, 0.3)',
+                  fillColor: '#e8ecf1',
+                  fillOpacity: 0.8,
+                  color: '#b0bec5',
                   weight: 1,
                   dashArray: '',
                   className: 'province-fill'
@@ -3894,8 +3859,9 @@
               onEachFeature: function(feature, layer) {
                 layer.on('mouseover', function(e) {
                   layer.setStyle({
-                    fillOpacity: 0.55,
-                    color: 'rgba(45, 212, 191, 0.7)',
+                    fillColor: '#d0d8e0',
+                    fillOpacity: 0.9,
+                    color: '#78909c',
                     weight: 1.5
                   });
                   if (feature.properties && feature.properties.name) {
@@ -3909,8 +3875,9 @@
                 });
                 layer.on('mouseout', function(e) {
                   layer.setStyle({
-                    fillOpacity: 0.35,
-                    color: 'rgba(45, 212, 191, 0.3)',
+                    fillColor: '#e8ecf1',
+                    fillOpacity: 0.8,
+                    color: '#b0bec5',
                     weight: 1
                   });
                   layer.closeTooltip();
@@ -3923,9 +3890,9 @@
               style: {
                 fillColor: 'transparent',
                 fillOpacity: 0,
-                color: '#2dd4bf',
+                color: '#546e7a',
                 weight: 2.5,
-                opacity: 0.8,
+                opacity: 0.9,
                 dashArray: ''
               }
             }).addTo(map);
@@ -4274,9 +4241,10 @@
       samples.forEach(function(s, i) {
         // Search all provinces for the city
         var cityData = null;
+        var provinceName = '';
         Object.keys(CHINA_REGIONS).some(function(province) {
           var found = CHINA_REGIONS[province].cities.find(function(c) { return c.name === s.city; });
-          if (found) { cityData = found; return true; }
+          if (found) { cityData = found; provinceName = province; return true; }
           return false;
         });
         if (!cityData) return;
@@ -4293,10 +4261,12 @@
           date: date.toISOString().split('T')[0]
         };
         workRecords.push(record);
-        if (cityMarkers[s.city]) {
-          cityMarkers[s.city].records.push(record);
-          updateCityMarker(s.city);
+        // 如果该城市标记不存在，先创建
+        if (!cityMarkers[s.city]) {
+          addCityMarkerToMap({ name: cityData.name, lat: cityData.lat, lng: cityData.lng, province: provinceName });
         }
+        cityMarkers[s.city].records.push(record);
+        updateCityMarker(s.city);
       });
     }
 

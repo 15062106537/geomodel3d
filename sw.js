@@ -1,5 +1,5 @@
 // GeoModel3D Service Worker v3.0 — 增强离线缓存 + 自动更新
-const CACHE_NAME = 'geomodel3d-v3.0';
+const CACHE_NAME = 'geomodel3d-v3.1';
 const RUNTIME_CACHE = 'geomodel3d-runtime';
 
 // 核心静态资源（首次安装即缓存）
@@ -16,7 +16,7 @@ const PRECACHE_ASSETS = [
 ];
 
 // CDN 资源（运行时缓存，带过期时间）
-const CDN_HOSTS = ['unpkg.com', 'is.autonavi.com', 'geo.datav.aliyun.com', 'tile.openstreetmap.org', 'basemaps.cartocdn.com'];
+const CDN_HOSTS = ['unpkg.com', 'is.autonavi.com', 'geo.datav.aliyun.com', 'tile.openstreetmap.org', 'basemaps.cartocdn.com', 'cartocdn.com', 'autonavi.com'];
 
 // ===== 安装：预缓存核心资源 =====
 self.addEventListener('install', function(event) {
