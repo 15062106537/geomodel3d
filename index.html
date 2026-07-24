@@ -3774,22 +3774,91 @@
       if (map) return;
       map = L.map('map-container', {
         center: [35.86, 104.19],
-        zoom: 5,
+        zoom: 4,
         zoomControl: true,
-        attributionControl: true
+        attributionControl: true,
+        minZoom: 3,
+        maxZoom: 18
       });
 
       // ===== 白色底图背景（瓦片未加载时的兜底） =====
       map.getContainer().style.background = '#f5f5f0';
 
-      // ===== OSM标准瓦片（含道路、城市标注，全球CDN） =====
-      var tileLayer = L.tileLayer(
-        'https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 18,
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      // ===== 瓦片源列表（依次尝试，首个成功的即用） =====
+      var tileSources = [
+        {
+          url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+          options: {
+            maxZoom: 19,
+            subdomains: 'abcd',
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          }
+        },
+        {
+          url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+          options: {
+            maxZoom: 18,
+            subdomains: 'abc',
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          }
+        },
+        {
+          url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+          options: {
+            maxZoom: 19,
+            subdomains: 'abcd',
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          }
         }
-      );
-      tileLayer.addTo(map);
+      ];
+
+      var currentTileIdx = 0;
+      var currentTileLayer = null;
+      var tileLoadFailed = false;
+
+      function loadTileLayer(idx) {
+        if (idx >= tileSources.length) {
+          console.warn('所有瓦片源均加载失败，使用纯GeoJSON地图');
+          return;
+        }
+        var src = tileSources[idx];
+        var layer = L.tileLayer(src.url, src.options);
+        var loaded = false;
+        var errored = false;
+
+        // 5秒内如果没有任何瓦片加载成功，切换到下一个源
+        var checkTimer = setTimeout(function() {
+          if (!loaded && !errored && idx < tileSources.length - 1) {
+            console.warn('瓦片源[' + idx + ']超时，切换到下一个');
+            map.removeLayer(layer);
+            loadTileLayer(idx + 1);
+          }
+        }, 5000);
+
+        layer.on('tileload', function() {
+          if (!loaded) {
+            loaded = true;
+            clearTimeout(checkTimer);
+            currentTileLayer = layer;
+            console.log('瓦片源[' + idx + ']加载成功');
+          }
+        });
+
+        layer.on('tileerror', function() {
+          if (!errored && !loaded) {
+            errored = true;
+            clearTimeout(checkTimer);
+            console.warn('瓦片源[' + idx + ']出错，切换到下一个');
+            map.removeLayer(layer);
+            if (idx < tileSources.length - 1) {
+              loadTileLayer(idx + 1);
+            }
+          }
+        });
+
+        layer.addTo(map);
+      }
+      loadTileLayer(0);
 
       // 比例尺控件
       L.control.scale({
@@ -3815,73 +3884,89 @@
 
     // 加载真实中国GeoJSON数据（含省份边界）
     function loadChinaGeoJSON() {
-      // 使用阿里云DataV的公开GeoJSON服务（免费，无需key），8秒超时后降级
-      var controller = new AbortController();
-      var timeoutId = setTimeout(function() { controller.abort(); }, 8000);
-      fetch('https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json', { signal: controller.signal })
-        .then(function(res) { clearTimeout(timeoutId); return res.json(); })
-        .then(function(data) {
-          if (data && data.features) {
-            chinaGeoLoaded = true;
-            // 省份填充层（白色背景适配）
-            L.geoJSON(data, {
-              style: function(feature) {
-                return {
-                  fillColor: '#e8ecf1',
-                  fillOpacity: 0.8,
-                  color: '#b0bec5',
-                  weight: 1,
-                  dashArray: '',
-                  className: 'province-fill'
-                };
-              },
-              onEachFeature: function(feature, layer) {
-                layer.on('mouseover', function(e) {
-                  layer.setStyle({
-                    fillColor: '#d0d8e0',
-                    fillOpacity: 0.9,
-                    color: '#78909c',
-                    weight: 1.5
-                  });
-                  if (feature.properties && feature.properties.name) {
-                    layer.bindTooltip(feature.properties.name, {
-                      sticky: true,
-                      className: 'province-tooltip',
-                      direction: 'top',
-                      offset: [0, -10]
-                    }).openTooltip();
-                  }
-                });
-                layer.on('mouseout', function(e) {
-                  layer.setStyle({
-                    fillColor: '#e8ecf1',
-                    fillOpacity: 0.8,
-                    color: '#b0bec5',
-                    weight: 1
-                  });
-                  layer.closeTooltip();
-                });
-              }
-            }).addTo(map);
+      // 多源GeoJSON加载，依次尝试，5秒超时后降级
+      var geoSources = [
+        'https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json',
+        'https://raw.githubusercontent.com/echarts-maps/echarts-china-cities-js/master/dist/china.json'
+      ];
 
-            // 国界线高亮层（更粗更亮）
-            L.geoJSON(data, {
-              style: {
-                fillColor: 'transparent',
-                fillOpacity: 0,
-                color: '#546e7a',
-                weight: 2.5,
-                opacity: 0.9,
-                dashArray: ''
-              }
-            }).addTo(map);
-          }
-        })
-        .catch(function(err) {
-          console.warn('GeoJSON加载失败，使用简化边界:', err);
-          // 降级：使用简化边界
+      function tryGeoSource(idx) {
+        if (idx >= geoSources.length) {
+          console.warn('所有GeoJSON源均失败，使用内置简化边界');
           addChinaGeoJSONFallback();
-        });
+          return;
+        }
+        var controller = new AbortController();
+        var timeoutId = setTimeout(function() { controller.abort(); }, 5000);
+        fetch(geoSources[idx], { signal: controller.signal })
+          .then(function(res) { clearTimeout(timeoutId); return res.json(); })
+          .then(function(data) {
+            if (data && data.features) {
+              chinaGeoLoaded = true;
+              console.log('GeoJSON源[' + idx + ']加载成功，共' + data.features.length + '个区域');
+              // 省份填充层（白色背景适配）
+              L.geoJSON(data, {
+                style: function(feature) {
+                  return {
+                    fillColor: '#e8ecf1',
+                    fillOpacity: 0.5,
+                    color: '#b0bec5',
+                    weight: 1,
+                    dashArray: '',
+                    className: 'province-fill'
+                  };
+                },
+                onEachFeature: function(feature, layer) {
+                  layer.on('mouseover', function(e) {
+                    layer.setStyle({
+                      fillColor: '#d0d8e0',
+                      fillOpacity: 0.7,
+                      color: '#78909c',
+                      weight: 1.5
+                    });
+                    if (feature.properties && feature.properties.name) {
+                      layer.bindTooltip(feature.properties.name, {
+                        sticky: true,
+                        className: 'province-tooltip',
+                        direction: 'top',
+                        offset: [0, -10]
+                      }).openTooltip();
+                    }
+                  });
+                  layer.on('mouseout', function(e) {
+                    layer.setStyle({
+                      fillColor: '#e8ecf1',
+                      fillOpacity: 0.5,
+                      color: '#b0bec5',
+                      weight: 1
+                    });
+                    layer.closeTooltip();
+                  });
+                }
+              }).addTo(map);
+
+              // 国界线高亮层（更粗更亮）
+              L.geoJSON(data, {
+                style: {
+                  fillColor: 'transparent',
+                  fillOpacity: 0,
+                  color: '#546e7a',
+                  weight: 2,
+                  opacity: 0.8,
+                  dashArray: ''
+                }
+              }).addTo(map);
+            } else {
+              tryGeoSource(idx + 1);
+            }
+          })
+          .catch(function(err) {
+            clearTimeout(timeoutId);
+            console.warn('GeoJSON源[' + idx + ']失败:', err.message);
+            tryGeoSource(idx + 1);
+          });
+      }
+      tryGeoSource(0);
     }
 
     // 降级方案：简化边界（网络不可用时）
