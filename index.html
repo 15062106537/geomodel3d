@@ -700,21 +700,21 @@
     /* Toast */
     .toast {
       position: fixed;
-      top: 20px;
+      top: 12px;
       left: 50%;
       transform: translateX(-50%);
       background: var(--glass-bg);
       backdrop-filter: blur(20px);
       border: 1px solid rgba(20,184,166,0.3);
-      border-radius: var(--radius);
-      padding: 12px 24px;
-      font-size: 0.85rem;
+      border-radius: 6px;
+      padding: 6px 14px;
+      font-size: 0.72rem;
       color: var(--ink);
       z-index: 5000;
       opacity: 0;
       transition: opacity 0.3s ease;
       pointer-events: none;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
     }
     .toast.show { opacity: 1; }
 
@@ -1155,22 +1155,22 @@
     /* ===== Toast 通知增强 ===== */
     .toast {
       position: fixed;
-      bottom: 80px;
+      bottom: 60px;
       left: 50%;
       transform: translateX(-50%);
       background: var(--glass-bg);
       backdrop-filter: blur(20px);
       border: 1px solid var(--glass-border);
       color: var(--ink);
-      padding: 12px 24px;
-      border-radius: 24px;
-      font-size: 0.8rem;
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 0.7rem;
       z-index: 2000;
       opacity: 0;
       transition: opacity 0.3s ease;
       pointer-events: none;
       white-space: nowrap;
-      max-width: 90vw;
+      max-width: 70vw;
       overflow: hidden;
       text-overflow: ellipsis;
       box-shadow: var(--glass-shadow);
