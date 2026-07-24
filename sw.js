@@ -57,7 +57,7 @@ self.addEventListener('activate', function(event) {
   self.clients.claim();
 });
 
-// ===== 请求拦截：缓存优先 + 网络回退 =====
+// 请求拦截：index.html 网络优先，其他按策略处理
 self.addEventListener('fetch', function(event) {
   var url = new URL(event.request.url);
   var req = event.request;
@@ -66,6 +66,12 @@ self.addEventListener('fetch', function(event) {
   if (req.method !== 'GET') return;
   // 跳过 chrome-extension
   if (url.protocol === 'chrome-extension:') return;
+
+  // index.html 始终网络优先，确保最新版本
+  if (url.pathname.endsWith('/') || url.pathname.endsWith('index.html')) {
+    event.respondWith(networkFirst(req));
+    return;
+  }
 
   // CDN 资源：网络优先，缓存回退
   var isCDN = CDN_HOSTS.some(function(host) {
