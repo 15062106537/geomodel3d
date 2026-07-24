@@ -1,0 +1,4593 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="GeoModel3D">
+  <meta name="theme-color" content="#14b8a6">
+  <meta name="mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-title" content="GeoModel3D">
+  <meta name="description" content="基于WebGL的地质三维建模系统，钻孔可视化、地层建模、储量估算、剖面分析">
+  <title>GeoModel3D — 掌上地质三维建模系统</title>
+  <link rel="stylesheet" href="leaflet.css" />
+  <style>
+    :root {
+      --bg: #080f12;
+      --bg2: #0f1a1f;
+      --bg3: #16262e;
+      --ink: #e2e8f0;
+      --muted: #7c8b98;
+      --rule: rgba(255,255,255,0.06);
+      --accent: #14b8a6;
+      --accent2: #f59e0b;
+      --danger: #ef4444;
+      --success: #22c55e;
+      /* GeoWriter green theme */
+      --gw-primary: #2D6A4F;
+      --gw-primary-light: #40916C;
+      --gw-bg: #1B4332;
+      --gw-bg2: #245840;
+      --gw-accent: #52B788;
+      --gw-text: #D8F3DC;
+      --gw-muted: #95D5B2;
+      /* glass surface */
+      --glass-bg: rgba(15, 26, 31, 0.72);
+      --glass-border: rgba(255,255,255,0.07);
+      --glass-shadow: 0 8px 32px rgba(0,0,0,0.35);
+      --radius: 10px;
+      --radius-sm: 8px;
+      --radius-lg: 14px;
+      --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ===== Loading — 极简角标，不遮挡内容 ===== */
+    .loading-badge {
+      position: absolute;
+      bottom: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      background: rgba(15, 26, 31, 0.85);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      font-size: 0.72rem;
+      color: var(--muted);
+      pointer-events: none;
+      transition: opacity 0.4s ease;
+      backdrop-filter: blur(8px);
+    }
+    .loading-badge.fade-out {
+      opacity: 0;
+    }
+    .loading-badge .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: badgePulse 1.2s ease-in-out infinite;
+    }
+    @keyframes badgePulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+
+    /* Layout */
+    .app {
+      display: flex;
+      height: 100vh;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 320px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      border-right: 1px solid var(--glass-border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      flex-shrink: 0;
+      box-shadow: 2px 0 30px rgba(0,0,0,0.25);
+    }
+    .sidebar-header {
+      padding: 18px 20px 14px;
+      border-bottom: 1px solid var(--glass-border);
+    }
+    .sidebar-header h1 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      background: linear-gradient(135deg, #14b8a6, #2dd4bf);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 2px;
+    }
+    .sidebar-header p {
+      font-size: 0.7rem;
+      color: var(--muted);
+      font-weight: 400;
+      letter-spacing: 0.02em;
+    }
+
+    /* ===== Sidebar Tabs ===== */
+    .sidebar-tabs {
+      display: flex;
+      background: rgba(8,15,18,0.5);
+      border-bottom: 1px solid var(--glass-border);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      backdrop-filter: blur(12px);
+    }
+    .sidebar-tab {
+      flex: 1;
+      padding: 11px 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-align: center;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      transition: all var(--transition);
+      border-bottom: 2px solid transparent;
+      letter-spacing: 0.02em;
+    }
+    .sidebar-tab:hover {
+      color: var(--ink);
+      background: rgba(20,184,166,0.06);
+    }
+    .sidebar-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+      background: rgba(20,184,166,0.08);
+    }
+    .sidebar-tab .tab-icon {
+      display: block;
+      font-size: 1.05rem;
+      margin-bottom: 2px;
+    }
+
+    /* Tab content panels */
+    .tab-content {
+      display: none;
+      flex-direction: column;
+    }
+    .tab-content.active {
+      display: flex;
+    }
+
+    .panel {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--glass-border);
+    }
+    .panel-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      letter-spacing: 0.02em;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 9px 18px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all var(--transition);
+      width: 100%;
+      margin-bottom: 8px;
+      letter-spacing: 0.02em;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(255,255,255,0);
+      transition: background var(--transition);
+    }
+    .btn:hover::after { background: rgba(255,255,255,0.06); }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary {
+      background: linear-gradient(135deg, #14b8a6, #0d9488);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(20,184,166,0.25);
+    }
+    .btn-primary:hover {
+      box-shadow: 0 6px 20px rgba(20,184,166,0.4);
+      transform: translateY(-1px);
+    }
+    .btn-primary:active { transform: translateY(0) scale(0.97); }
+    .btn-secondary {
+      background: rgba(255,255,255,0.04);
+      color: var(--ink);
+      border: 1px solid var(--glass-border);
+    }
+    .btn-secondary:hover {
+      background: rgba(255,255,255,0.08);
+      border-color: rgba(255,255,255,0.12);
+    }
+    .btn-success {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(34,197,94,0.25);
+    }
+    .btn-success:hover {
+      box-shadow: 0 6px 20px rgba(34,197,94,0.4);
+      transform: translateY(-1px);
+    }
+    .btn-warning {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(245,158,11,0.25);
+    }
+    .btn-warning:hover {
+      box-shadow: 0 6px 20px rgba(245,158,11,0.4);
+      transform: translateY(-1px);
+    }
+    .btn-group {
+      display: flex;
+      gap: 8px;
+    }
+    .btn-group .btn { width: auto; flex: 1; }
+    .btn-sm {
+      padding: 5px 12px;
+      font-size: 0.75rem;
+      width: auto;
+      margin-bottom: 0;
+      border-radius: 6px;
+    }
+
+    /* File input */
+    .file-input-wrapper {
+      position: relative;
+      overflow: hidden;
+    }
+    .file-input-wrapper input[type="file"] {
+      position: absolute;
+      left: -9999px;
+    }
+
+    /* Select */
+    select, input[type="number"], input[type="text"], input[type="date"], textarea {
+      width: 100%;
+      padding: 9px 12px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm);
+      color: var(--ink);
+      font-size: 0.85rem;
+      margin-bottom: 10px;
+      transition: all var(--transition);
+    }
+    select:focus, input:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(20,184,166,0.12);
+      background: rgba(255,255,255,0.06);
+    }
+    select option {
+      background: #0f1a1f;
+      color: var(--ink);
+    }
+    textarea {
+      resize: vertical;
+      min-height: 60px;
+      font-family: inherit;
+    }
+    label.input-label {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 4px;
+      font-weight: 500;
+    }
+
+    /* Checkbox group */
+    .checkbox-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      color: var(--muted);
+      cursor: pointer;
+      transition: color var(--transition);
+    }
+    .checkbox-item:hover { color: var(--ink); }
+    .checkbox-item input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .checkbox-item.active { color: var(--ink); }
+
+    /* Stats */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .stat-box {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      text-align: center;
+      transition: all var(--transition);
+    }
+    .stat-box:hover {
+      background: rgba(20,184,166,0.05);
+      border-color: rgba(20,184,166,0.2);
+    }
+    .stat-value {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+    }
+    .stat-label {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 4px;
+      font-weight: 500;
+    }
+
+    /* Legend */
+    .legend {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      transition: color var(--transition);
+    }
+    .legend-item:hover { color: var(--ink); }
+    .legend-color {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      flex-shrink: 0;
+      box-shadow: 0 0 6px rgba(0,0,0,0.3);
+    }
+
+    /* ===== View Area (3D + Map + GeoWriter Detail) ===== */
+    .view-area {
+      flex: 1;
+      position: relative;
+      background: linear-gradient(135deg, #060d10 0%, #080f12 50%, #0a1418 100%);
+    }
+    #canvas-container, #map-container, #geowriter-detail {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    #map-container {
+      z-index: 1;
+      display: none;
+    }
+    #canvas-container {
+      z-index: 0;
+    }
+    #geowriter-detail {
+      z-index: 1;
+      display: none;
+      overflow-y: auto;
+      padding: 40px;
+    }
+    #map-container.active { display: block; }
+    #canvas-container.inactive { display: none; }
+    #geowriter-detail.active { display: block; }
+    canvas { display: block; }
+
+    /* View switcher */
+    .view-switcher {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 1000;
+      display: flex;
+      gap: 0;
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--glass-shadow);
+    }
+    .view-btn {
+      padding: 9px 18px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: var(--muted);
+      transition: all var(--transition);
+      letter-spacing: 0.02em;
+    }
+    .view-btn.active {
+      background: linear-gradient(135deg, rgba(20,184,166,0.2), rgba(20,184,166,0.1));
+      color: var(--accent);
+      box-shadow: inset 0 1px 0 rgba(20,184,166,0.15);
+    }
+    .view-btn:hover:not(.active) {
+      color: var(--ink);
+      background: rgba(255,255,255,0.04);
+    }
+
+    /* Overlay info — 点击可关闭的提示面板 */
+    .overlay-info {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      padding: 10px 16px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      max-width: 260px;
+      z-index: 100;
+      box-shadow: var(--glass-shadow);
+      opacity: 1;
+      transition: opacity 0.4s ease;
+      cursor: pointer;
+      pointer-events: auto;
+    }
+    .overlay-info:hover {
+      opacity: 0.7;
+    }
+    .overlay-info.fade-out {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .overlay-info strong {
+      color: var(--ink);
+      font-weight: 600;
+    }
+    .overlay-info .close-hint {
+      position: absolute;
+      top: 4px;
+      right: 8px;
+      font-size: 0.65rem;
+      color: var(--muted);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .overlay-info:hover .close-hint {
+      opacity: 1;
+    }
+
+    /* Controls hint */
+    .controls-hint {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: 24px;
+      padding: 8px 22px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      z-index: 100;
+      box-shadow: var(--glass-shadow);
+    }
+    .controls-hint span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: color var(--transition);
+    }
+    .controls-hint span:hover { color: var(--ink); }
+
+    /* Section panel overlay */
+    .section-panel {
+      position: absolute;
+      top: 60px;
+      right: 16px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      padding: 18px;
+      width: 260px;
+      display: none;
+      z-index: 100;
+      box-shadow: var(--glass-shadow);
+    }
+    .section-panel.active { display: block; }
+    .section-panel h4 {
+      font-size: 0.85rem;
+      color: var(--accent);
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    /* Reserve panel */
+    .reserve-panel {
+      position: absolute;
+      top: 60px;
+      right: 16px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      padding: 18px;
+      width: 300px;
+      display: none;
+      max-height: 80vh;
+      overflow-y: auto;
+      z-index: 100;
+      box-shadow: var(--glass-shadow);
+    }
+    .reserve-panel.active { display: block; }
+    .reserve-panel h4 {
+      font-size: 0.85rem;
+      color: var(--accent2);
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+    .reserve-table {
+      width: 100%;
+      font-size: 0.75rem;
+      border-collapse: collapse;
+    }
+    .reserve-table th {
+      text-align: left;
+      color: var(--accent);
+      padding: 7px 4px;
+      border-bottom: 1px solid var(--glass-border);
+      font-weight: 600;
+    }
+    .reserve-table td {
+      padding: 7px 4px;
+      border-bottom: 1px solid var(--glass-border);
+      color: var(--muted);
+    }
+
+    /* ===== Work Marker Form Overlay ===== */
+    .marker-form-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.65);
+      backdrop-filter: blur(4px);
+      z-index: 2000;
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+    .marker-form-overlay.active { display: flex; }
+    .marker-form {
+      background: var(--glass-bg);
+      backdrop-filter: blur(24px);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      width: 400px;
+      max-width: 90vw;
+      max-height: 90vh;
+      overflow-y: auto;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .marker-form h3 {
+      font-size: 1rem;
+      color: var(--accent);
+      margin-bottom: 16px;
+      font-weight: 700;
+    }
+    .marker-form .form-row {
+      display: flex;
+      gap: 12px;
+    }
+    .marker-form .form-row > * { flex: 1; }
+    .marker-form .form-btns {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .marker-form .form-btns .btn { margin-bottom: 0; }
+
+    /* ===== Work Record List ===== */
+    .work-record {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+      margin-bottom: 8px;
+      border-left: 3px solid var(--accent);
+      transition: all var(--transition);
+    }
+    .work-record:hover {
+      background: rgba(20,184,166,0.05);
+      border-left-color: #2dd4bf;
+    }
+    .work-record-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .work-record-title {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .work-record-date {
+      font-size: 0.7rem;
+      color: var(--muted);
+    }
+    .work-record-desc {
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .work-record-type {
+      display: inline-block;
+      font-size: 0.65rem;
+      padding: 3px 10px;
+      border-radius: 12px;
+      margin-top: 6px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+    .type-drill { background: rgba(20,184,166,0.15); color: #14b8a6; }
+    .type-sample { background: rgba(245,158,11,0.15); color: #f59e0b; }
+    .type-observation { background: rgba(34,197,94,0.15); color: #22c55e; }
+    .type-measure { background: rgba(59,130,246,0.15); color: #3b82f6; }
+    .type-safety { background: rgba(239,68,68,0.15); color: #ef4444; }
+    .type-fieldrecord { background: rgba(45,106,79,0.2); color: #52B788; }
+    .type-model { background: rgba(20,184,166,0.15); color: #14b8a6; }
+
+    /* Work records scroll area */
+    .work-list-scroll {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(20,184,166,0.3);
+      border-radius: var(--radius);
+      padding: 12px 24px;
+      font-size: 0.85rem;
+      color: var(--ink);
+      z-index: 5000;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+    }
+    .toast.show { opacity: 1; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+
+    /* Leaflet overrides */
+    .leaflet-container {
+      background: #060d10 !important;
+    }
+    .leaflet-control-zoom a {
+      background: var(--glass-bg) !important;
+      color: var(--ink) !important;
+      border-color: var(--glass-border) !important;
+      backdrop-filter: blur(20px);
+      transition: all var(--transition);
+      font-weight: 600;
+    }
+    .leaflet-control-zoom a:hover {
+      background: rgba(20,184,166,0.15) !important;
+      color: var(--accent) !important;
+    }
+    .leaflet-control-zoom {
+      border: 1px solid var(--glass-border) !important;
+      border-radius: var(--radius) !important;
+      overflow: hidden;
+      box-shadow: var(--glass-shadow) !important;
+    }
+    .leaflet-popup-content-wrapper {
+      background: var(--glass-bg) !important;
+      color: var(--ink) !important;
+      border-radius: var(--radius) !important;
+      border: 1px solid var(--glass-border) !important;
+      backdrop-filter: blur(24px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.5) !important;
+    }
+    .leaflet-popup-tip {
+      background: var(--glass-bg) !important;
+      border: 1px solid var(--glass-border) !important;
+    }
+    .leaflet-popup-close-button { color: var(--muted) !important; transition: color var(--transition); }
+    .leaflet-popup-close-button:hover { color: var(--accent) !important; }
+
+    /* Map attribution */
+    .leaflet-control-attribution {
+      background: rgba(8,15,18,0.7) !important;
+      color: var(--muted) !important;
+      font-size: 10px !important;
+      backdrop-filter: blur(8px);
+      border-radius: 4px !important;
+    }
+    .leaflet-control-attribution a { color: var(--accent) !important; }
+
+    /* Scale control */
+    .leaflet-control-scale-line {
+      background: rgba(8,15,18,0.7) !important;
+      color: var(--muted) !important;
+      border-color: rgba(20,184,166,0.3) !important;
+      font-size: 10px !important;
+      backdrop-filter: blur(8px);
+      margin-bottom: 8px !important;
+      padding: 2px 6px !important;
+      border-radius: 4px !important;
+    }
+
+    /* GeoJSON province styling */
+    .province-fill {
+      fill: rgba(15, 26, 31, 0.35);
+      stroke: rgba(20,184,166,0.2);
+      stroke-width: 0.8;
+      transition: all 0.35s ease;
+    }
+    .province-fill:hover {
+      fill: rgba(20,184,166,0.1);
+      stroke: rgba(20,184,166,0.55);
+      stroke-width: 1.2;
+    }
+    .country-border {
+      fill: rgba(15, 26, 31, 0.15);
+      stroke: #14b8a6;
+      stroke-width: 2;
+      fill-opacity: 0.3;
+    }
+
+    /* Province tooltip */
+    .province-tooltip {
+      background: var(--glass-bg) !important;
+      border: 1px solid rgba(20,184,166,0.35) !important;
+      border-radius: 6px !important;
+      color: #14b8a6 !important;
+      font-size: 12px !important;
+      font-weight: 600 !important;
+      padding: 4px 10px !important;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3) !important;
+      backdrop-filter: blur(12px);
+    }
+    .province-tooltip::before {
+      border-top-color: rgba(20,184,166,0.35) !important;
+    }
+
+    /* Borehole markers on map */
+    .borehole-map-marker {
+      animation: boreholeAppear 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+      opacity: 0;
+    }
+    @keyframes boreholeAppear {
+      from { opacity: 0; transform: scale(0); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* ===== City Pin Markers (Refined) ===== */
+    .city-pin-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+      filter: drop-shadow(0 3px 8px rgba(0,0,0,0.45));
+    }
+    .city-pin-wrap:hover { transform: scale(1.15) translateY(-2px); }
+    .city-pin-body {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, #14b8a6 0%, #0d9488 100%);
+      border-radius: 50% 50% 50% 4px;
+      transform: rotate(-45deg);
+      border: 2.5px solid rgba(255,255,255,0.85);
+      box-shadow: 0 4px 16px rgba(13,148,136,0.4), inset 0 1px 2px rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .city-pin-icon {
+      transform: rotate(45deg);
+      font-size: 12px; line-height: 1;
+      color: #fff;
+      font-weight: 700;
+      text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+    .city-pin-shadow {
+      width: 18px; height: 4px;
+      background: rgba(0,0,0,0.25);
+      border-radius: 50%;
+      filter: blur(3px);
+      margin-top: -1px;
+    }
+    .city-pin-label {
+      font-size: 10px; font-weight: 600; white-space: nowrap;
+      color: #c8e6e3;
+      background: var(--glass-bg);
+      backdrop-filter: blur(12px);
+      padding: 2px 8px; border-radius: 8px;
+      border: 1px solid rgba(20,184,166,0.2);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      margin-top: 2px;
+      letter-spacing: 0.5px;
+      transition: all 0.3s;
+    }
+    /* City with work records -> golden glow */
+    .city-pin-wrap.active .city-pin-body {
+      background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #d97706 100%);
+      border-color: rgba(251, 191, 36, 0.9);
+      box-shadow: 0 4px 24px rgba(245,158,11,0.6), 0 0 40px rgba(245,158,11,0.2), inset 0 1px 2px rgba(255,255,255,0.3);
+      animation: cityPulse 2.5s ease-in-out infinite;
+    }
+    .city-pin-wrap.active .city-pin-label {
+      background: linear-gradient(135deg, rgba(245,158,11,0.9), rgba(217,119,6,0.9));
+      color: #fff;
+      border-color: rgba(251, 191, 36, 0.5);
+      box-shadow: 0 2px 12px rgba(245,158,11,0.3);
+    }
+    @keyframes cityPulse {
+      0%, 100% { box-shadow: 0 4px 24px rgba(245,158,11,0.5), 0 0 40px rgba(245,158,11,0.15); }
+      50% { box-shadow: 0 4px 28px rgba(245,158,11,0.8), 0 0 50px rgba(245,158,11,0.35); }
+    }
+
+    /* ===== GeoWriter Styles ===== */
+    .gw-example-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .gw-example-tag {
+      padding: 5px 12px;
+      font-size: 0.72rem;
+      background: var(--gw-bg);
+      color: var(--gw-muted);
+      border: 1px solid var(--gw-primary);
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all var(--transition);
+      font-weight: 500;
+    }
+    .gw-example-tag:hover {
+      background: var(--gw-primary);
+      color: #fff;
+      transform: translateY(-1px);
+    }
+    .gw-result-preview {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      font-size: 0.75rem;
+      color: var(--muted);
+      max-height: 150px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      line-height: 1.5;
+      margin-bottom: 10px;
+    }
+    .gw-collection-list {
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .gw-collection-item {
+      background: rgba(255,255,255,0.03);
+      border-left: 3px solid var(--gw-primary);
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 6px;
+      cursor: pointer;
+      transition: all var(--transition);
+    }
+    .gw-collection-item:hover {
+      background: rgba(45,106,79,0.15);
+      border-left-color: var(--gw-accent);
+    }
+    .gw-collection-item-title {
+      font-size: 0.8rem;
+      color: var(--ink);
+      font-weight: 600;
+    }
+    .gw-collection-item-sub {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* ===== GeoWriter Detail View ===== */
+    .gw-detail-container {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .gw-detail-header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .gw-detail-header h2 {
+      font-size: 1.6rem;
+      color: var(--gw-accent);
+      margin-bottom: 6px;
+      font-weight: 700;
+    }
+    .gw-detail-header p {
+      font-size: 0.85rem;
+      color: var(--gw-muted);
+    }
+    .gw-detail-record {
+      background: var(--gw-bg);
+      border: 1px solid var(--gw-primary);
+      border-radius: var(--radius-lg);
+      padding: 28px 32px;
+      margin-bottom: 20px;
+      color: var(--gw-text);
+      font-size: 0.9rem;
+      line-height: 1.8;
+      white-space: pre-wrap;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.35);
+    }
+    .gw-detail-record .gw-section-title {
+      color: var(--gw-accent);
+      font-weight: 700;
+      font-size: 1rem;
+    }
+    .gw-detail-meta {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    .gw-detail-meta-item {
+      background: var(--gw-bg2);
+      border: 1px solid var(--gw-primary);
+      border-radius: var(--radius-sm);
+      padding: 12px 22px;
+      text-align: center;
+    }
+    .gw-detail-meta-item .meta-val {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--gw-accent);
+    }
+    .gw-detail-meta-item .meta-label {
+      font-size: 0.7rem;
+      color: var(--gw-muted);
+      margin-top: 2px;
+    }
+    .gw-detail-actions {
+      text-align: center;
+      margin-top: 20px;
+    }
+    .gw-detail-actions .btn {
+      width: auto;
+      display: inline-flex;
+      margin: 0 8px;
+    }
+    .gw-no-selection {
+      text-align: center;
+      padding: 80px 40px;
+      color: var(--gw-muted);
+    }
+    .gw-no-selection .gw-big-icon {
+      font-size: 4rem;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+    .gw-no-selection h3 {
+      font-size: 1.2rem;
+      color: var(--gw-accent);
+      margin-bottom: 8px;
+    }
+
+    @media (max-width: 900px) {
+      .sidebar { width: 280px; }
+    }
+
+    /* ===== PWA 安装引导条 ===== */
+    .install-banner {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: linear-gradient(135deg, var(--gw-primary), var(--gw-primary-light));
+      color: #fff;
+      z-index: 2000;
+      padding: 14px 18px;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 -4px 24px rgba(0,0,0,0.35);
+      animation: slideUp 0.3s ease;
+      backdrop-filter: blur(12px);
+    }
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    .install-banner.show { display: flex; }
+    .install-banner-text { flex:1; font-size:0.8rem; line-height:1.4; }
+    .install-banner-text strong { font-size:0.9rem; }
+    .install-btn {
+      background: #fff;
+      color: var(--gw-primary);
+      border: none;
+      padding: 9px 20px;
+      border-radius: 22px;
+      font-weight: 700;
+      font-size: 0.8rem;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+      transition: all var(--transition);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+    }
+    .install-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+    }
+    .install-dismiss {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.6);
+      font-size: 1.2rem;
+      cursor: pointer;
+      padding: 4px;
+      flex-shrink: 0;
+      transition: color var(--transition);
+    }
+    .install-dismiss:hover { color: #fff; }
+
+    /* ===== 更新提示条 ===== */
+    .update-toast {
+      display: none;
+      position: fixed;
+      top: 50px; left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, var(--accent), #0d9488);
+      color: #fff;
+      z-index: 2000;
+      padding: 10px 22px;
+      border-radius: 22px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(20,184,166,0.35);
+      animation: fadeIn 0.3s ease;
+      white-space: nowrap;
+      transition: all var(--transition);
+    }
+    .update-toast:hover {
+      transform: translateX(-50%) translateY(-1px);
+      box-shadow: 0 6px 24px rgba(20,184,166,0.5);
+    }
+    @keyframes fadeIn { from { opacity:0; transform:translateX(-50%) translateY(-10px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
+    .update-toast.show { display: block; }
+
+    /* ===== 离线指示器 ===== */
+    .offline-indicator {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--danger), #f87171, var(--danger));
+      background-size: 200% 100%;
+      z-index: 3000;
+      animation: offlinePulse 2s ease-in-out infinite;
+    }
+    @keyframes offlinePulse {
+      0%, 100% { opacity: 0.7; }
+      50% { opacity: 1; }
+    }
+    .offline-indicator.show { display: block; }
+    .offline-badge {
+      display: none;
+      position: fixed;
+      top: 8px; left: 50%;
+      transform: translateX(-50%);
+      background: var(--danger);
+      color: #fff;
+      padding: 5px 16px;
+      border-radius: 14px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      z-index: 2000;
+      white-space: nowrap;
+      box-shadow: 0 4px 14px rgba(239,68,68,0.35);
+    }
+    .offline-badge.show { display: block; }
+
+    /* ===== Toast 通知增强 ===== */
+    .toast {
+      position: fixed;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--glass-border);
+      color: var(--ink);
+      padding: 12px 24px;
+      border-radius: 24px;
+      font-size: 0.8rem;
+      z-index: 2000;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+      white-space: nowrap;
+      max-width: 90vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      box-shadow: var(--glass-shadow);
+    }
+    .toast.show { opacity: 1; }
+
+    /* ===== 手机端适配 ===== */
+    .mobile-header {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 44px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--glass-border);
+      z-index: 1000;
+      align-items: center;
+      padding: 0 8px;
+      gap: 8px;
+    }
+    .hamburger {
+      display: none;
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-size: 22px;
+      cursor: pointer;
+      padding: 4px 8px;
+      flex-shrink: 0;
+      transition: color var(--transition);
+    }
+    .hamburger:hover { color: #2dd4bf; }
+    .mobile-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+    .mobile-tabs {
+      display: none;
+      margin-left: auto;
+      gap: 2px;
+    }
+    .mobile-tab {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--glass-border);
+      color: var(--muted);
+      font-size: 0.65rem;
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all var(--transition);
+      font-weight: 500;
+    }
+    .mobile-tab:hover { color: var(--ink); }
+    .mobile-tab.active {
+      background: linear-gradient(135deg, rgba(20,184,166,0.2), rgba(20,184,166,0.1));
+      color: var(--accent);
+      border-color: rgba(20,184,166,0.3);
+    }
+    .mobile-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(2px);
+      z-index: 998;
+    }
+
+    @media (max-width: 768px) {
+      .mobile-header { display: flex; }
+      .hamburger { display: block; }
+      .mobile-tabs { display: flex; }
+      .mobile-overlay.active { display: block; }
+
+      .app { flex-direction: column; }
+      .sidebar {
+        position: fixed;
+        top: 44px; left: 0; bottom: 0;
+        width: 300px;
+        z-index: 999;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        box-shadow: 4px 0 20px rgba(0,0,0,0.4);
+      }
+      .sidebar.open { transform: translateX(0); }
+      .sidebar-header { padding: 12px 16px 8px; }
+      .sidebar-tabs { display: none; }
+      .view-area {
+        flex: 1;
+        margin-top: 44px;
+        width: 100%;
+      }
+      .tab-content { padding: 10px 12px; }
+      .btn { padding: 8px 12px; font-size: 0.75rem; }
+      .btn-group { flex-wrap: wrap; }
+      .stat-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+      .stat-card { padding: 8px; }
+      .stat-value { font-size: 1rem; }
+      select, input[type="file"] { font-size: 0.75rem; }
+      .legend-panel { font-size: 0.7rem; }
+    }
+
+    @media (max-width: 480px) {
+      .mobile-title { font-size: 0.75rem; }
+      .mobile-tab { padding: 3px 6px; font-size: 0.6rem; }
+      .sidebar { width: 85vw; }
+      .stat-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <!-- 离线指示器 -->
+  <div class="offline-indicator" id="offlineIndicator"></div>
+  <div class="offline-badge" id="offlineBadge">离线模式</div>
+
+  <!-- 安装引导条 -->
+  <div class="install-banner" id="installBanner">
+    <span class="install-banner-text"><strong>安装到手机桌面</strong><br>快速启动，离线可用</span>
+    <button class="install-btn" onclick="installPWA()">立即安装</button>
+    <button class="install-dismiss" onclick="dismissInstall()">✕</button>
+  </div>
+
+  <!-- 更新提示 -->
+  <div class="update-toast" id="updateToast" onclick="applyUpdate()">新版本可用，点击更新</div>
+
+  <div class="app">
+    <!-- 移动端顶部栏 -->
+    <div class="mobile-header" id="mobileHeader">
+      <button class="hamburger" onclick="toggleMobileSidebar()" id="hamburgerBtn">&#9776;</button>
+      <span class="mobile-title">GeoModel3D</span>
+      <div class="mobile-tabs">
+        <button class="mobile-tab active" onclick="switchSidebarTab('modeling')" id="mtab-modeling">建模</button>
+        <button class="mobile-tab" onclick="switchSidebarTab('fieldwork')" id="mtab-fieldwork">记录</button>
+        <button class="mobile-tab" onclick="switchSidebarTab('map')" id="mtab-map">地图</button>
+      </div>
+    </div>
+    <!-- 移动端遮罩 -->
+    <div class="mobile-overlay" id="mobileOverlay" onclick="toggleMobileSidebar()"></div>
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <h1>GeoModel3D</h1>
+        <p>掌上地质三维建模系统 v2.0</p>
+      </div>
+
+      <!-- Sidebar Tabs -->
+      <div class="sidebar-tabs">
+        <button class="sidebar-tab active" onclick="switchSidebarTab('modeling')" id="stab-modeling">
+          <span class="tab-icon">&#127760;</span>三维建模
+        </button>
+        <button class="sidebar-tab" onclick="switchSidebarTab('fieldwork')" id="stab-fieldwork">
+          <span class="tab-icon">&#128221;</span>野外记录
+        </button>
+        <button class="sidebar-tab" onclick="switchSidebarTab('map')" id="stab-map">
+          <span class="tab-icon">&#127758;</span>工作地图
+        </button>
+      </div>
+
+      <!-- ===== Tab 1: 三维建模 ===== -->
+      <div class="tab-content active" id="tab-modeling">
+        <!-- Data Panel -->
+        <div class="panel">
+          <div class="panel-title">&#128202; 数据导入</div>
+          <button class="btn btn-primary" onclick="loadSampleData()">
+            &#9881; 加载示例数据
+          </button>
+          <div class="file-input-wrapper">
+            <input type="file" id="csvFile" accept=".csv" onchange="handleFileUpload(event)">
+            <button class="btn btn-secondary" onclick="document.getElementById('csvFile').click()">
+              &#128193; 导入 CSV 钻孔数据
+            </button>
+          </div>
+          <div style="font-size:0.7rem;color:var(--muted);margin-top:4px;">
+            格式: 钻孔ID,名称,X,Y,Z,深度,倾角,方位角
+          </div>
+        </div>
+
+        <!-- Display Panel -->
+        <div class="panel">
+          <div class="panel-title">&#128065; 显示控制</div>
+          <div class="checkbox-group">
+            <label class="checkbox-item active" id="label-boreholes">
+              <input type="checkbox" checked onchange="toggleLayer('boreholes')">
+              钻孔轨迹
+            </label>
+            <label class="checkbox-item active" id="label-stratum">
+              <input type="checkbox" checked onchange="toggleLayer('stratum')">
+              地层模型
+            </label>
+            <label class="checkbox-item active" id="label-grid">
+              <input type="checkbox" checked onchange="toggleLayer('grid')">
+              地面网格
+            </label>
+            <label class="checkbox-item" id="label-section">
+              <input type="checkbox" onchange="toggleLayer('section')">
+              剖面切割面
+            </label>
+          </div>
+        </div>
+
+        <!-- Modeling Panel -->
+        <div class="panel">
+          <div class="panel-title">&#128300; 地层建模</div>
+          <select id="interpMethod">
+            <option value="idw">IDW (反距离加权)</option>
+            <option value="kriging">克里金插值</option>
+            <option value="rbf">RBF (径向基函数)</option>
+          </select>
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="buildStratumModel()">
+              &#127912; 生成模型
+            </button>
+            <button class="btn btn-secondary" onclick="clearModels()">
+              &#10060; 清除
+            </button>
+          </div>
+          <!-- 矿体控制（3DMine/Surpac风格：矿体与地层分离） -->
+          <div style="margin-top:10px;padding-top:8px;border-top:1px solid #2a4a52">
+            <div style="font-size:12px;color:var(--accent);margin-bottom:6px">&#9874; 矿体控制</div>
+            <div class="btn-group">
+              <button class="btn btn-secondary" id="btnOreBody" onclick="toggleOreBody()" style="font-size:11px;padding:6px 10px">
+                &#10004; 显示矿体
+              </button>
+            </div>
+          </div>
+          <div id="layerList" style="margin-top:8px;display:none">
+            <div style="font-size:11px;color:var(--text2);margin-bottom:4px">地层显示控制：</div>
+            <div id="layerCheckboxes"></div>
+          </div>
+        </div>
+
+        <!-- Analysis Panel -->
+        <div class="panel">
+          <div class="panel-title">&#9986; 分析工具</div>
+          <button class="btn btn-secondary" onclick="toggleSectionPanel()">
+            &#128207; 剖面分析
+          </button>
+          <button class="btn btn-secondary" onclick="calculateReserve()">
+            &#128176; 储量估算
+          </button>
+        </div>
+
+        <!-- Export Panel -->
+        <div class="panel">
+          <div class="panel-title">&#128229; 数据导出</div>
+          <div class="btn-group">
+            <button class="btn btn-secondary" onclick="exportCSV()" style="font-size:11px;padding:6px 10px">
+              &#128196; 导出 CSV
+            </button>
+            <button class="btn btn-secondary" onclick="exportModelGLTF()" style="font-size:11px;padding:6px 10px">
+              &#128190; 导出 GLTF
+            </button>
+          </div>
+          <div style="font-size:0.65rem;color:var(--muted);margin-top:4px;">
+            快捷键: S=剖面 R=储量 E=CSV G=GLTF M=建模 L=示例
+          </div>
+        </div>
+
+        <!-- Stats Panel -->
+        <div class="panel">
+          <div class="panel-title">&#128200; 统计信息</div>
+          <div class="stats-grid">
+            <div class="stat-box">
+              <div class="stat-value" id="stat-boreholes">0</div>
+              <div class="stat-label">钻孔数量</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-value" id="stat-layers">0</div>
+              <div class="stat-label">地层数量</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-value" id="stat-area">0</div>
+              <div class="stat-label">面积 (m²)</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-value" id="stat-volume">0</div>
+              <div class="stat-label">体积 (m³)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Legend Panel -->
+        <div class="panel">
+          <div class="panel-title">&#127912; 图例</div>
+          <div class="legend" id="legend">
+            <div class="legend-item">
+              <div class="legend-color" style="background:#8B4513"></div>
+              <span>第四系表土</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background:#DAA520"></div>
+              <span>第四系砂砾石</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background:#F4A460"></div>
+              <span>白垩系砂岩</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background:#8B6914"></div>
+              <span>侏罗系泥岩</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background:#808080"></div>
+              <span>三叠系灰岩</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background:#556B2F"></div>
+              <span>二叠系页岩</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background:#A9A9A9"></div>
+              <span>石炭系灰岩</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Tab 2: 野外记录 (GeoWriter) ===== -->
+      <div class="tab-content" id="tab-fieldwork">
+        <!-- Input Panel -->
+        <div class="panel">
+          <div class="panel-title" style="color:var(--gw-accent);">&#128221; GeoWriter 野外记录</div>
+          <label class="input-label">口语笔记输入</label>
+          <textarea id="gwInput" rows="5" placeholder="在此输入野外口语笔记...&#10;例如：在学校东边300米处，看到肉红色的花岗岩，中粒结构，产状215度角60度..."></textarea>
+
+          <!-- Quick Examples -->
+          <label class="input-label">快捷示例</label>
+          <div class="gw-example-tags">
+            <span class="gw-example-tag" onclick="fillGWExample('granite')">花岗岩</span>
+            <span class="gw-example-tag" onclick="fillGWExample('shale')">页岩+断层</span>
+            <span class="gw-example-tag" onclick="fillGWExample('gabbro')">辉长岩</span>
+          </div>
+
+          <!-- Generate Button -->
+          <button class="btn btn-primary" style="background:var(--gw-primary);" onclick="generateGeoRecord()">
+            &#9889; 一键生成地质记录
+          </button>
+        </div>
+
+        <!-- Result Preview -->
+        <div class="panel">
+          <div class="panel-title" style="color:var(--gw-accent);">&#128196; 生成结果预览</div>
+          <div class="gw-result-preview" id="gwResultPreview">
+            生成结果将在此处显示...
+          </div>
+          <button class="btn btn-sm btn-secondary" onclick="viewRecordDetail()" id="btnViewDetail" style="display:none;">
+            &#128065; 大屏查看记录
+          </button>
+        </div>
+
+        <!-- City Link -->
+        <div class="panel">
+          <div class="panel-title" style="color:var(--gw-accent);">&#127758; 关联城市</div>
+          <label class="input-label">选择关联城市（自动添加到地图标记）</label>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <select id="gwProvinceSelect" onchange="onProvinceChange()" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--gw-border);background:var(--gw-bg);color:var(--gw-fg);font-size:13px;">
+              <option value="">-- 选择省份 --</option>
+            </select>
+            <select id="gwCitySelect" onchange="onCityChange()" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--gw-border);background:var(--gw-bg);color:var(--gw-fg);font-size:13px;" disabled>
+              <option value="">-- 先选择省份 --</option>
+            </select>
+            <select id="gwDistrictSelect" style="width:100%;padding:6px 8px;border-radius:6px;border:1px solid var(--gw-border);background:var(--gw-bg);color:var(--gw-fg);font-size:13px;" disabled>
+              <option value="">-- 先选择城市 --</option>
+            </select>
+          </div>
+          <button class="btn btn-sm btn-success" onclick="linkRecordToCity()" id="btnLinkCity" style="display:none;">
+            &#128205; 加入地图标记
+          </button>
+        </div>
+
+        <!-- Collection -->
+        <div class="panel">
+          <div class="panel-title" style="color:var(--gw-accent);">&#128218; 记录合集 (<span id="gwCollectionCount">0</span>条)</div>
+          <button class="btn btn-sm btn-secondary" onclick="addToCollection()" id="btnAddCollection" style="display:none;">
+            &#10003; 加入合集
+          </button>
+          <div class="gw-collection-list" id="gwCollectionList">
+            <div style="font-size:0.75rem;color:var(--muted);text-align:center;padding:12px;">
+              生成记录后可加入合集管理
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== Tab 3: 工作地图 ===== -->
+      <div class="tab-content" id="tab-map">
+        <div class="panel">
+          <div class="panel-title">&#127758; 全国工作地图</div>
+          <button class="btn btn-warning" onclick="switchView('map')" id="btnToggleMap">
+            &#127758; 切换到全国地图
+          </button>
+          <div style="font-size:0.7rem;color:var(--muted);margin-bottom:8px;">
+            点击地图上任意位置或城市标记，添加工作记录
+          </div>
+          <div style="font-size:0.7rem;color:var(--accent2);margin-bottom:8px;">
+            &#127919; 有记录的城市会显示金色光晕
+          </div>
+        </div>
+
+        <!-- Work Records -->
+        <div class="panel">
+          <div style="font-size:0.8rem;color:var(--accent);margin-bottom:8px;display:flex;justify-content:space-between;">
+            <span>&#128220; 工作记录</span>
+            <span id="recordCount" style="color:var(--muted)">0 条</span>
+          </div>
+          <div class="work-list-scroll" id="workRecordList">
+            <div style="font-size:0.75rem;color:var(--muted);text-align:center;padding:12px;">
+              暂无记录，切换到全国地图后<br>点击城市标记添加工作记录
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== View Area (3D + Map + GeoWriter Detail) ===== -->
+    <div class="view-area" id="viewArea">
+      <!-- 3D -->
+      <div id="canvas-container" style="position:relative">
+        <div id="bh-tooltip" style="display:none;position:absolute;z-index:100;background:rgba(0,0,0,0.85);color:#fff;padding:8px 12px;border-radius:6px;font-size:12px;line-height:1.6;pointer-events:none;border:1px solid #26a69a;max-width:220px"></div>
+      </div>
+
+      <!-- Map -->
+      <div id="map-container"></div>
+
+      <!-- GeoWriter Detail View -->
+      <div id="geowriter-detail">
+        <div class="gw-no-selection" id="gwNoSelection">
+          <div class="gw-big-icon">&#128221;</div>
+          <h3>GeoWriter 野外记录详情</h3>
+          <p>请在左侧「野外记录」Tab中生成地质记录，<br>然后点击「大屏查看记录」在此处阅读</p>
+        </div>
+        <div class="gw-detail-container" id="gwDetailContent" style="display:none;">
+          <div class="gw-detail-header">
+            <h2>&#128221; GeoWriter 标准地质记录</h2>
+            <p>基于野外口语笔记自动生成的标准化地质记录文档</p>
+          </div>
+          <div class="gw-detail-meta" id="gwDetailMeta"></div>
+          <div class="gw-detail-record" id="gwDetailRecord"></div>
+          <div class="gw-detail-actions">
+            <button class="btn btn-secondary" onclick="copyRecordText()" style="background:var(--gw-primary);border:none;color:#fff;">
+              &#128203; 复制文本
+            </button>
+            <button class="btn btn-secondary" onclick="switchView('3d')">
+              &#127760; 返回3D场景
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- View Switcher -->
+      <div class="view-switcher">
+        <button class="view-btn active" id="btn3D" onclick="switchView('3d')">&#127760; 3D 场景</button>
+        <button class="view-btn" id="btnMap" onclick="switchView('map')">&#128506; 全国地图</button>
+        <button class="view-btn" id="btnGW" onclick="switchView('geowriter')">&#128221; 野外记录</button>
+      </div>
+
+      <div class="loading-badge" id="loadingBadge">
+        <span class="badge-dot"></span> 初始化中...
+      </div>
+
+      <div class="overlay-info" id="info-panel" onclick="hideInfoPanel()" style="display:none;">
+        <span class="close-hint">&#10005;</span>
+        <strong>GeoModel3D</strong><br>
+        <span id="info-text">点击「加载示例数据」开始体验</span>
+      </div>
+
+      <div class="controls-hint" id="controlsHint">
+        <span>&#128423; 左键旋转</span>
+        <span>&#128424; 右键平移</span>
+        <span>&#128425; 滚轮缩放</span>
+      </div>
+
+      <!-- Section Panel -->
+      <div class="section-panel" id="sectionPanel">
+        <h4>&#128207; 剖面分析</h4>
+        <label style="font-size:0.8rem;color:var(--muted);">起点 X</label>
+        <input type="number" id="secStartX" value="100" step="10">
+        <label style="font-size:0.8rem;color:var(--muted);">起点 Y</label>
+        <input type="number" id="secStartY" value="100" step="10">
+        <label style="font-size:0.8rem;color:var(--muted);">终点 X</label>
+        <input type="number" id="secEndX" value="300" step="10">
+        <label style="font-size:0.8rem;color:var(--muted);">终点 Y</label>
+        <input type="number" id="secEndY" value="300" step="10">
+        <button class="btn btn-primary" style="margin-top:8px;" onclick="generateSection()">
+          &#9986; 生成剖面
+        </button>
+      </div>
+
+      <!-- Reserve Panel -->
+      <div class="reserve-panel" id="reservePanel">
+        <h4>&#128176; 储量估算结果</h4>
+        <table class="reserve-table" id="reserveTable">
+          <thead>
+            <tr><th>地层</th><th>面积(m²)</th><th>体积(m³)</th><th>厚度(m)</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <button class="btn btn-secondary" style="margin-top:12px;" onclick="closeReservePanel()">
+          关闭
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Work Marker Form Overlay ===== -->
+  <div class="marker-form-overlay" id="markerFormOverlay">
+    <div class="marker-form">
+      <h3>&#128204; 添加工作记录</h3>
+      <label class="input-label">位置坐标</label>
+      <input type="text" id="mfCoords" readonly>
+      <div class="form-row">
+        <div>
+          <label class="input-label">日期</label>
+          <input type="date" id="mfDate">
+        </div>
+        <div>
+          <label class="input-label">工作类型</label>
+          <select id="mfType">
+            <option value="drill">&#128367; 钻孔施工</option>
+            <option value="sample">&#128230; 样品采集</option>
+            <option value="observation">&#128300; 地质观察</option>
+            <option value="measure">&#127922; 测量放样</option>
+            <option value="safety">&#9888; 安全检查</option>
+            <option value="other">&#128221; 其他工作</option>
+          </select>
+        </div>
+      </div>
+      <label class="input-label">地点名称</label>
+      <input type="text" id="mfLocation" placeholder="例如：ZK-05西侧边坡">
+      <label class="input-label">工作描述</label>
+      <textarea id="mfDesc" placeholder="记录你在该位置做了哪些工作、观察到了什么..."></textarea>
+      <div class="form-btns">
+        <button class="btn btn-secondary" onclick="closeMarkerForm()">取消</button>
+        <button class="btn btn-primary" onclick="saveMarker()">&#10003; 保存记录</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- ===== Libraries ===== -->
+  <script src="three.min.js"></script>
+  <script src="OrbitControls.js"></script>
+  <script src="leaflet.js"></script>
+
+  <script>
+    // ==================== Global State ====================
+    let scene, camera, renderer, controls;
+    let boreholeGroup, stratumGroup, gridGroup, sectionGroup;
+    let boreholes = [];
+    let stratumModels = [];
+    let showBoreholes = true, showStratum = true, showGrid = true, showSection = false;
+    let currentView = '3d';
+    let currentSidebarTab = 'modeling';
+
+    // ===== Map State =====
+    let map = null;
+    let cityMarkers = {}; // { cityName: { marker, records: [] } }
+    let workRecords = [];
+    let boreholeMarkers = [];
+    let pendingCity = null;
+    let pendingLatLng = null;   // 自定义点位的经纬度 { lat, lng }
+    let customMarkers = [];     // 自定义点位标记 [{ marker, records: [], id }]
+    let customMarkerIdCounter = 0;
+    let workRecordIdCounter = 1;
+
+    // ===== GeoWriter State =====
+    let gwLastResult = null;       // last generated record text
+    let gwLastInfo = null;         // last extracted info JSON
+    let gwCollection = [];          // collected records
+    let gwRecordCounter = 1;
+    let gwModelLinked = false;      // whether 3D model has been linked to map
+
+    // ===== China Regions Database (Province → City → District) =====
+    // Each city has lat/lng for map positioning; districts are optional
+    const CHINA_REGIONS = {
+      '北京市': {
+        cities: [
+          { name: '北京', lat: 39.9042, lng: 116.4074, districts: ['东城区','西城区','朝阳区','海淀区','丰台区','石景山区','通州区','顺义区','房山区','大兴区','昌平区','怀柔区','密云区','延庆区','门头沟区','平谷区'] }
+        ]
+      },
+      '上海市': {
+        cities: [
+          { name: '上海', lat: 31.2304, lng: 121.4737, districts: ['黄浦区','徐汇区','长宁区','静安区','普陀区','虹口区','杨浦区','浦东新区','闵行区','宝山区','嘉定区','金山区','松江区','青浦区','奉贤区','崇明区'] }
+        ]
+      },
+      '天津市': {
+        cities: [
+          { name: '天津', lat: 39.3434, lng: 117.3616, districts: ['和平区','河东区','河西区','南开区','河北区','红桥区','东丽区','西青区','津南区','北辰区','武清区','宝坻区','滨海新区','宁河区','静海区','蓟州区'] }
+        ]
+      },
+      '重庆市': {
+        cities: [
+          { name: '重庆', lat: 29.4316, lng: 106.9123, districts: ['渝中区','万州区','涪陵区','大渡口区','江北区','沙坪坝区','九龙坡区','南岸区','北碚区','渝北区','巴南区','长寿区','江津区','合川区','永川区','南川区'] }
+        ]
+      },
+      '河北省': {
+        cities: [
+          { name: '石家庄', lat: 38.0428, lng: 114.5149, districts: ['长安区','桥西区','新华区','裕华区','井陉矿区'] },
+          { name: '唐山', lat: 39.6309, lng: 118.1802, districts: ['路南区','路北区','古冶区','开平区','丰南区','丰润区','曹妃甸区'] },
+          { name: '秦皇岛', lat: 39.9354, lng: 119.5977, districts: ['海港区','山海关区','北戴河区','抚宁区'] },
+          { name: '邯郸', lat: 36.6257, lng: 114.5391, districts: ['邯山区','丛台区','复兴区','峰峰矿区'] },
+          { name: '保定', lat: 38.8739, lng: 115.4646, districts: ['竞秀区','莲池区','满城区','清苑区','徐水区'] },
+          { name: '张家口', lat: 40.8242, lng: 114.8875, districts: ['桥东区','桥西区','宣化区','下花园区'] },
+          { name: '承德', lat: 40.9752, lng: 117.9626, districts: ['双桥区','双滦区','鹰手营子矿区'] },
+          { name: '廊坊', lat: 39.5426, lng: 116.6839, districts: ['安次区','广阳区'] },
+          { name: '沧州', lat: 38.3037, lng: 116.8386, districts: ['新华区','运河区'] },
+          { name: '衡水', lat: 37.7350, lng: 115.6658, districts: ['桃城区','冀州区','枣强县'] }
+        ]
+      },
+      '山西省': {
+        cities: [
+          { name: '太原', lat: 37.8706, lng: 112.5489, districts: ['小店区','迎泽区','杏花岭区','尖草坪区','万柏林区','晋源区'] },
+          { name: '大同', lat: 40.0763, lng: 113.3001, districts: ['平城区','云冈区','新荣区','云州区'] },
+          { name: '阳泉', lat: 37.8574, lng: 113.5803, districts: ['城区','矿区','郊区'] },
+          { name: '长治', lat: 36.1954, lng: 113.1163, districts: ['潞州区','上党区','屯留区','潞城区'] },
+          { name: '晋城', lat: 35.4908, lng: 112.8512, districts: ['城区','沁水县','阳城县'] },
+          { name: '朔州', lat: 39.3312, lng: 112.4328, districts: ['朔城区','平鲁区'] },
+          { name: '晋中', lat: 37.6872, lng: 112.7530, districts: ['榆次区','太谷区'] },
+          { name: '运城', lat: 35.0260, lng: 111.0070, districts: ['盐湖区'] },
+          { name: '忻州', lat: 38.4167, lng: 112.7340, districts: ['忻府区'] },
+          { name: '临汾', lat: 36.0880, lng: 111.5190, districts: ['尧都区'] },
+          { name: '吕梁', lat: 37.5183, lng: 111.1441, districts: ['离石区'] }
+        ]
+      },
+      '内蒙古自治区': {
+        cities: [
+          { name: '呼和浩特', lat: 40.8422, lng: 111.7498, districts: ['新城区','回民区','玉泉区','赛罕区'] },
+          { name: '包头', lat: 40.6574, lng: 109.8403, districts: ['东河区','昆都仑区','青山区','石拐区','九原区'] },
+          { name: '乌海', lat: 39.6532, lng: 106.7943, districts: ['海勃湾区','海南区','乌达区'] },
+          { name: '赤峰', lat: 42.2571, lng: 118.8870, districts: ['红山区','元宝山区','松山区'] },
+          { name: '通辽', lat: 43.6171, lng: 122.2430, districts: ['科尔沁区'] },
+          { name: '鄂尔多斯', lat: 39.6086, lng: 109.7812, districts: ['东胜区','康巴什区'] },
+          { name: '呼伦贝尔', lat: 49.2122, lng: 119.7658, districts: ['海拉尔区'] },
+          { name: '巴彦淖尔', lat: 40.7430, lng: 107.3872, districts: ['临河区'] },
+          { name: '乌兰察布', lat: 41.0340, lng: 113.1329, districts: ['集宁区'] }
+        ]
+      },
+      '辽宁省': {
+        cities: [
+          { name: '沈阳', lat: 41.8057, lng: 123.4315, districts: ['和平区','沈河区','大东区','皇姑区','铁西区','苏家屯区','浑南区','沈北新区','于洪区'] },
+          { name: '大连', lat: 38.9140, lng: 121.6147, districts: ['中山区','西岗区','沙河口区','甘井子区','旅顺口区','金州区'] },
+          { name: '鞍山', lat: 41.1087, lng: 122.9957, districts: ['铁东区','铁西区','立山区','千山区'] },
+          { name: '抚顺', lat: 41.8819, lng: 123.9575, districts: ['新抚区','东洲区','望花区','顺城区'] },
+          { name: '本溪', lat: 41.2979, lng: 123.7685, districts: ['平山区','溪湖区','明山区','南芬区'] },
+          { name: '丹东', lat: 40.0005, lng: 124.3540, districts: ['元宝区','振兴区','振安区'] },
+          { name: '锦州', lat: 41.0951, lng: 121.1270, districts: ['古塔区','凌河区','太和区'] },
+          { name: '营口', lat: 40.6670, lng: 122.2350, districts: ['站前区','西市区','鲅鱼圈区','老边区'] },
+          { name: '阜新', lat: 42.0118, lng: 121.6481, districts: ['海州区','新邱区','太平区','清河门区','细河区'] },
+          { name: '辽阳', lat: 41.2681, lng: 123.1728, districts: ['白塔区','文圣区','宏伟区','弓长岭区','太子河区'] },
+          { name: '盘锦', lat: 41.1198, lng: 122.0707, districts: ['双台子区','兴隆台区','大洼区'] },
+          { name: '铁岭', lat: 42.2997, lng: 123.8441, districts: ['银州区','清河区'] },
+          { name: '朝阳', lat: 41.5718, lng: 120.4588, districts: ['双塔区','龙城区'] },
+          { name: '葫芦岛', lat: 40.7430, lng: 120.8372, districts: ['连山区','龙港区','南票区'] }
+        ]
+      },
+      '吉林省': {
+        cities: [
+          { name: '长春', lat: 43.8804, lng: 125.3228, districts: ['南关区','宽城区','朝阳区','二道区','绿园区','双阳区','九台区'] },
+          { name: '吉林', lat: 43.8380, lng: 126.5496, districts: ['昌邑区','龙潭区','船营区','丰满区'] },
+          { name: '四平', lat: 43.1666, lng: 124.3504, districts: ['铁西区','铁东区'] },
+          { name: '辽源', lat: 42.8879, lng: 125.1437, districts: ['龙山区','西安区'] },
+          { name: '通化', lat: 41.7278, lng: 125.9397, districts: ['东昌区','二道江区'] },
+          { name: '白山', lat: 41.9426, lng: 126.4274, districts: ['浑江区','江源区'] },
+          { name: '松原', lat: 45.1410, lng: 124.8256, districts: ['宁江区'] },
+          { name: '白城', lat: 45.6196, lng: 122.8388, districts: ['洮北区'] },
+          { name: '延边', lat: 42.8917, lng: 129.5092, districts: ['延吉市','图们市','敦化市','珲春市','龙井市','和龙市'] }
+        ]
+      },
+      '黑龙江省': {
+        cities: [
+          { name: '哈尔滨', lat: 45.8038, lng: 126.5352, districts: ['道里区','南岗区','道外区','平房区','松北区','香坊区','呼兰区','阿城区'] },
+          { name: '齐齐哈尔', lat: 47.3540, lng: 123.9180, districts: ['龙沙区','建华区','铁锋区','昂昂溪区','富拉尔基区'] },
+          { name: '鸡西', lat: 45.3005, lng: 130.9697, districts: ['鸡冠区','恒山区','滴道区','梨树区','城子河区'] },
+          { name: '鹤岗', lat: 47.3500, lng: 130.2770, districts: ['向阳区','工农区','南山区','兴安区','东山区'] },
+          { name: '双鸭山', lat: 46.6394, lng: 131.1594, districts: ['尖山区','岭东区','四方台区','宝山区'] },
+          { name: '大庆', lat: 46.5907, lng: 125.1037, districts: ['萨尔图区','龙凤区','让胡路区','红岗区','大同区'] },
+          { name: '伊春', lat: 47.7279, lng: 128.8993, districts: ['伊美区','乌翠区','友好区'] },
+          { name: '佳木斯', lat: 46.7996, lng: 130.3180, districts: ['向阳区','前进区','东风区','郊区'] },
+          { name: '七台河', lat: 45.7713, lng: 131.0031, districts: ['新兴区','桃山区','茄子河区'] },
+          { name: '牡丹江', lat: 44.5526, lng: 129.6329, districts: ['东安区','阳明区','爱民区','西安区'] },
+          { name: '黑河', lat: 50.2456, lng: 127.5286, districts: ['爱辉区'] },
+          { name: '绥化', lat: 46.6374, lng: 126.9689, districts: ['北林区'] }
+        ]
+      },
+      '江苏省': {
+        cities: [
+          { name: '南京', lat: 32.0603, lng: 118.7969, districts: ['玄武区','秦淮区','建邺区','鼓楼区','浦口区','栖霞区','雨花台区','江宁区'] },
+          { name: '苏州', lat: 31.2990, lng: 120.5853, districts: ['虎丘区','吴中区','相城区','姑苏区','吴江区'] },
+          { name: '无锡', lat: 31.4912, lng: 120.3119, districts: ['锡山区','惠山区','滨湖区','梁溪区','新吴区'] },
+          { name: '常州', lat: 31.8106, lng: 119.9741, districts: ['天宁区','钟楼区','新北区','武进区','金坛区'] },
+          { name: '南通', lat: 31.9800, lng: 120.8942, districts: ['崇川区','通州区'] },
+          { name: '徐州', lat: 34.2044, lng: 117.2850, districts: ['鼓楼区','云龙区','贾汪区','泉山区','铜山区'] },
+          { name: '连云港', lat: 34.5966, lng: 119.2216, districts: ['连云区','海州区','赣榆区'] },
+          { name: '淮安', lat: 33.6104, lng: 119.0153, districts: ['淮安区','淮阴区','清江浦区','洪泽区'] },
+          { name: '盐城', lat: 33.3477, lng: 120.1631, districts: ['亭湖区','盐都区','大丰区'] },
+          { name: '扬州', lat: 32.3936, lng: 119.4129, districts: ['广陵区','邗江区','江都区'] },
+          { name: '镇江', lat: 32.1880, lng: 119.4253, districts: ['京口区','润州区','丹徒区'] },
+          { name: '泰州', lat: 32.4550, lng: 119.9232, districts: ['海陵区','高港区','姜堰区'] },
+          { name: '宿迁', lat: 33.9631, lng: 118.2752, districts: ['宿城区','宿豫区'] }
+        ]
+      },
+      '浙江省': {
+        cities: [
+          { name: '杭州', lat: 30.2741, lng: 120.1551, districts: ['上城区','拱墅区','西湖区','滨江区','萧山区','余杭区','富阳区','临安区','临平区','钱塘区'] },
+          { name: '宁波', lat: 29.8683, lng: 121.5440, districts: ['海曙区','江北区','北仑区','镇海区','鄞州区','奉化区'] },
+          { name: '温州', lat: 28.0006, lng: 120.6725, districts: ['鹿城区','龙湾区','瓯海区','洞头区'] },
+          { name: '嘉兴', lat: 30.7469, lng: 120.7555, districts: ['南湖区','秀洲区'] },
+          { name: '湖州', lat: 30.8724, lng: 120.0885, districts: ['吴兴区','南浔区'] },
+          { name: '绍兴', lat: 30.0300, lng: 120.5801, districts: ['越城区','柯桥区','上虞区'] },
+          { name: '金华', lat: 29.0786, lng: 119.6494, districts: ['婺城区','金东区'] },
+          { name: '衢州', lat: 28.9355, lng: 118.8593, districts: ['柯城区','衢江区'] },
+          { name: '舟山', lat: 29.9853, lng: 122.1070, districts: ['定海区','普陀区'] },
+          { name: '台州', lat: 28.6563, lng: 121.4209, districts: ['椒江区','黄岩区','路桥区'] },
+          { name: '丽水', lat: 28.4676, lng: 119.9229, districts: ['莲都区'] }
+        ]
+      },
+      '安徽省': {
+        cities: [
+          { name: '合肥', lat: 31.8206, lng: 117.2272, districts: ['瑶海区','庐阳区','蜀山区','包河区'] },
+          { name: '芜湖', lat: 31.3524, lng: 118.4326, districts: ['镜湖区','弋江区','鸠江区','湾沚区','繁昌区'] },
+          { name: '蚌埠', lat: 32.9168, lng: 117.3889, districts: ['龙子湖区','蚌山区','禹会区','淮上区'] },
+          { name: '淮南', lat: 32.6264, lng: 116.9998, districts: ['大通区','田家庵区','谢家集区','八公山区','潘集区'] },
+          { name: '马鞍山', lat: 31.6705, lng: 118.5077, districts: ['花山区','雨山区','博望区'] },
+          { name: '淮北', lat: 33.9717, lng: 116.7944, districts: ['杜集区','相山区','烈山区'] },
+          { name: '铜陵', lat: 30.9440, lng: 117.8122, districts: ['铜官区','义安区','郊区'] },
+          { name: '安庆', lat: 30.5428, lng: 117.0631, districts: ['迎江区','大观区','宜秀区'] },
+          { name: '黄山', lat: 29.7147, lng: 118.3377, districts: ['屯溪区','黄山区','徽州区'] },
+          { name: '滁州', lat: 32.3016, lng: 118.3166, districts: ['琅琊区','南谯区'] },
+          { name: '阜阳', lat: 32.8908, lng: 115.8142, districts: ['颍州区','颍东区','颍泉区'] },
+          { name: '宿州', lat: 33.6364, lng: 116.9641, districts: ['埇桥区'] },
+          { name: '六安', lat: 31.7349, lng: 116.5078, districts: ['金安区','裕安区','叶集区'] },
+          { name: '亳州', lat: 33.8443, lng: 115.7785, districts: ['谯城区'] },
+          { name: '池州', lat: 30.6644, lng: 117.4912, districts: ['贵池区'] },
+          { name: '宣城', lat: 30.9457, lng: 118.7590, districts: ['宣州区'] }
+        ]
+      },
+      '福建省': {
+        cities: [
+          { name: '福州', lat: 26.0745, lng: 119.2965, districts: ['鼓楼区','台江区','仓山区','马尾区','晋安区','长乐区'] },
+          { name: '厦门', lat: 24.4798, lng: 118.0894, districts: ['思明区','海沧区','湖里区','集美区','同安区','翔安区'] },
+          { name: '莆田', lat: 25.4304, lng: 119.0078, districts: ['城厢区','涵江区','荔城区','秀屿区'] },
+          { name: '三明', lat: 26.2654, lng: 117.6389, districts: ['三元区','沙县区'] },
+          { name: '泉州', lat: 24.8741, lng: 118.6753, districts: ['鲤城区','丰泽区','洛江区','泉港区'] },
+          { name: '漳州', lat: 24.5127, lng: 117.6471, districts: ['芗城区','龙文区'] },
+          { name: '南平', lat: 26.6418, lng: 118.1778, districts: ['延平区','建阳区'] },
+          { name: '龙岩', lat: 25.0754, lng: 117.0178, districts: ['新罗区','永定区'] },
+          { name: '宁德', lat: 26.6566, lng: 119.5479, districts: ['蕉城区'] }
+        ]
+      },
+      '江西省': {
+        cities: [
+          { name: '南昌', lat: 28.6820, lng: 115.8579, districts: ['东湖区','西湖区','青云谱区','青山湖区','新建区','红谷滩区'] },
+          { name: '景德镇', lat: 29.2687, lng: 117.1784, districts: ['昌江区','珠山区'] },
+          { name: '萍乡', lat: 27.6229, lng: 113.8543, districts: ['安源区','湘东区'] },
+          { name: '九江', lat: 29.7053, lng: 116.0019, districts: ['濂溪区','浔阳区','柴桑区'] },
+          { name: '新余', lat: 27.8174, lng: 114.9173, districts: ['渝水区'] },
+          { name: '鹰潭', lat: 28.2600, lng: 117.0693, districts: ['月湖区','余江区'] },
+          { name: '赣州', lat: 25.8312, lng: 114.9334, districts: ['章贡区','南康区','赣县区'] },
+          { name: '吉安', lat: 27.1138, lng: 114.9863, districts: ['吉州区','青原区'] },
+          { name: '宜春', lat: 27.8043, lng: 114.4161, districts: ['袁州区'] },
+          { name: '抚州', lat: 27.9545, lng: 116.3582, districts: ['临川区','东乡区'] },
+          { name: '上饶', lat: 28.4553, lng: 117.9433, districts: ['信州区','广丰区','广信区'] }
+        ]
+      },
+      '山东省': {
+        cities: [
+          { name: '济南', lat: 36.6512, lng: 116.9972, districts: ['历下区','市中区','槐荫区','天桥区','历城区','长清区','章丘区','济阳区','莱芜区','钢城区'] },
+          { name: '青岛', lat: 36.0671, lng: 120.3826, districts: ['市南区','市北区','黄岛区','崂山区','李沧区','城阳区','即墨区'] },
+          { name: '淄博', lat: 36.8131, lng: 118.0548, districts: ['淄川区','张店区','博山区','临淄区','周村区'] },
+          { name: '枣庄', lat: 34.8104, lng: 117.3237, districts: ['市中区','薛城区','峄城区','台儿庄区','山亭区'] },
+          { name: '东营', lat: 37.4341, lng: 118.6749, districts: ['东营区','河口区','垦利区'] },
+          { name: '烟台', lat: 37.4638, lng: 121.4479, districts: ['芝罘区','福山区','牟平区','莱山区','蓬莱区'] },
+          { name: '潍坊', lat: 36.7069, lng: 119.1619, districts: ['潍城区','寒亭区','坊子区','奎文区'] },
+          { name: '济宁', lat: 35.4145, lng: 116.5871, districts: ['任城区','兖州区'] },
+          { name: '泰安', lat: 36.2001, lng: 117.0870, districts: ['泰山区','岱岳区'] },
+          { name: '威海', lat: 37.5091, lng: 122.1164, districts: ['环翠区','文登区'] },
+          { name: '日照', lat: 35.4164, lng: 119.5269, districts: ['东港区','岚山区'] },
+          { name: '临沂', lat: 35.1041, lng: 118.3564, districts: ['兰山区','罗庄区','河东区'] },
+          { name: '德州', lat: 37.4364, lng: 116.3076, districts: ['德城区','陵城区'] },
+          { name: '聊城', lat: 36.4558, lng: 115.9855, districts: ['东昌府区','茌平区'] },
+          { name: '滨州', lat: 37.3826, lng: 117.9703, districts: ['滨城区','沾化区'] },
+          { name: '菏泽', lat: 35.2326, lng: 115.4810, districts: ['牡丹区','定陶区'] }
+        ]
+      },
+      '河南省': {
+        cities: [
+          { name: '郑州', lat: 34.7466, lng: 113.6253, districts: ['中原区','二七区','管城回族区','金水区','上街区','惠济区'] },
+          { name: '开封', lat: 34.7972, lng: 114.3416, districts: ['龙亭区','顺河回族区','鼓楼区','禹王台区','祥符区'] },
+          { name: '洛阳', lat: 34.6197, lng: 112.4540, districts: ['老城区','西工区','瀍河回族区','涧西区','洛龙区'] },
+          { name: '平顶山', lat: 33.7662, lng: 113.1925, districts: ['新华区','卫东区','石龙区','湛河区'] },
+          { name: '安阳', lat: 36.0998, lng: 114.3928, districts: ['文峰区','北关区','殷都区','龙安区'] },
+          { name: '鹤壁', lat: 35.7475, lng: 114.2975, districts: ['鹤山区','山城区','淇滨区'] },
+          { name: '新乡', lat: 35.3029, lng: 113.8835, districts: ['红旗区','卫滨区','凤泉区','牧野区'] },
+          { name: '焦作', lat: 35.2340, lng: 113.2418, districts: ['解放区','中站区','马村区','山阳区'] },
+          { name: '濮阳', lat: 35.7627, lng: 115.0297, districts: ['华龙区'] },
+          { name: '许昌', lat: 34.0357, lng: 113.8524, districts: ['魏都区','建安区'] },
+          { name: '漯河', lat: 33.5816, lng: 114.0166, districts: ['源汇区','郾城区','召陵区'] },
+          { name: '三门峡', lat: 34.7734, lng: 111.2004, districts: ['湖滨区','陕州区'] },
+          { name: '南阳', lat: 32.9907, lng: 112.5283, districts: ['宛城区','卧龙区'] },
+          { name: '商丘', lat: 34.4146, lng: 115.6506, districts: ['梁园区','睢阳区'] },
+          { name: '信阳', lat: 32.1264, lng: 114.0913, districts: ['浉河区','平桥区'] },
+          { name: '周口', lat: 33.6260, lng: 114.6498, districts: ['川汇区','淮阳区'] },
+          { name: '驻马店', lat: 32.9802, lng: 114.0229, districts: ['驿城区'] }
+        ]
+      },
+      '湖北省': {
+        cities: [
+          { name: '武汉', lat: 30.5928, lng: 114.3055, districts: ['江岸区','江汉区','硚口区','汉阳区','武昌区','青山区','洪山区','蔡甸区','江夏区','黄陂区','新洲区','东西湖区'] },
+          { name: '黄石', lat: 30.1991, lng: 115.0386, districts: ['黄石港区','西塞山区','下陆区','铁山区'] },
+          { name: '十堰', lat: 32.6292, lng: 110.7980, districts: ['茅箭区','张湾区','郧阳区'] },
+          { name: '宜昌', lat: 30.6918, lng: 111.2864, districts: ['西陵区','伍家岗区','点军区','猇亭区','夷陵区'] },
+          { name: '襄阳', lat: 32.0090, lng: 112.1228, districts: ['襄城区','樊城区','襄州区'] },
+          { name: '鄂州', lat: 30.3900, lng: 114.8910, districts: ['梁子湖区','华容区','鄂城区'] },
+          { name: '荆门', lat: 31.0354, lng: 112.1992, districts: ['东宝区','掇刀区'] },
+          { name: '孝感', lat: 30.9243, lng: 113.9268, districts: ['孝南区'] },
+          { name: '荆州', lat: 30.3340, lng: 112.2399, districts: ['沙市区','荆州区'] },
+          { name: '黄冈', lat: 30.4461, lng: 114.8724, districts: ['黄州区'] },
+          { name: '咸宁', lat: 29.8412, lng: 114.3225, districts: ['咸安区'] },
+          { name: '随州', lat: 31.6900, lng: 113.3826, districts: ['曾都区'] },
+          { name: '恩施', lat: 30.2720, lng: 109.4880, districts: ['恩施市','利川市','建始县','巴东县','宣恩县','咸丰县','来凤县','鹤峰县'] }
+        ]
+      },
+      '湖南省': {
+        cities: [
+          { name: '长沙', lat: 28.2282, lng: 112.9388, districts: ['芙蓉区','天心区','岳麓区','开福区','雨花区','望城区'] },
+          { name: '株洲', lat: 27.8274, lng: 113.1340, districts: ['天元区','芦淞区','荷塘区','石峰区'] },
+          { name: '湘潭', lat: 27.8291, lng: 112.9442, districts: ['雨湖区','岳塘区'] },
+          { name: '衡阳', lat: 26.8936, lng: 112.5719, districts: ['珠晖区','雁峰区','石鼓区','蒸湘区'] },
+          { name: '邵阳', lat: 27.2387, lng: 111.4674, districts: ['双清区','大祥区','北塔区'] },
+          { name: '岳阳', lat: 29.3561, lng: 113.1288, districts: ['岳阳楼区','云溪区','君山区'] },
+          { name: '常德', lat: 29.0318, lng: 111.6989, districts: ['武陵区','鼎城区'] },
+          { name: '张家界', lat: 29.1171, lng: 110.4793, districts: ['永定区','武陵源区'] },
+          { name: '益阳', lat: 28.5530, lng: 112.3553, districts: ['赫山区','资阳区'] },
+          { name: '郴州', lat: 25.7703, lng: 113.0147, districts: ['北湖区','苏仙区'] },
+          { name: '永州', lat: 26.4345, lng: 111.6132, districts: ['零陵区','冷水滩区'] },
+          { name: '怀化', lat: 27.5494, lng: 109.9972, districts: ['鹤城区'] },
+          { name: '娄底', lat: 27.7000, lng: 111.9937, districts: ['娄星区'] },
+          { name: '湘西', lat: 28.3114, lng: 109.7390, districts: ['吉首市','泸溪县','凤凰县','花垣县','保靖县','古丈县','永顺县','龙山县'] }
+        ]
+      },
+      '广东省': {
+        cities: [
+          { name: '广州', lat: 23.1291, lng: 113.2644, districts: ['荔湾区','越秀区','海珠区','天河区','白云区','黄埔区','番禺区','花都区','南沙区','从化区','增城区'] },
+          { name: '深圳', lat: 22.5431, lng: 114.0579, districts: ['罗湖区','福田区','南山区','宝安区','龙岗区','盐田区','龙华区','坪山区','光明区'] },
+          { name: '珠海', lat: 22.2710, lng: 113.5767, districts: ['香洲区','斗门区','金湾区'] },
+          { name: '汕头', lat: 23.3535, lng: 116.6816, districts: ['龙湖区','金平区','濠江区','潮阳区','潮南区','澄海区'] },
+          { name: '佛山', lat: 23.0218, lng: 113.1218, districts: ['禅城区','南海区','顺德区','三水区','高明区'] },
+          { name: '韶关', lat: 24.8107, lng: 113.5975, districts: ['武江区','浈江区','曲江区'] },
+          { name: '湛江', lat: 21.2707, lng: 110.3594, districts: ['赤坎区','霞山区','坡头区','麻章区'] },
+          { name: '肇庆', lat: 23.0518, lng: 112.4655, districts: ['端州区','鼎湖区','高要区'] },
+          { name: '江门', lat: 22.5786, lng: 113.0815, districts: ['蓬江区','江海区','新会区'] },
+          { name: '茂名', lat: 21.6629, lng: 110.9254, districts: ['茂南区','电白区'] },
+          { name: '惠州', lat: 23.1115, lng: 114.4160, districts: ['惠城区','惠阳区'] },
+          { name: '梅州', lat: 24.2883, lng: 116.1225, districts: ['梅江区','梅县区'] },
+          { name: '汕尾', lat: 22.7862, lng: 115.3753, districts: ['城区','海丰县','陆丰市'] },
+          { name: '河源', lat: 23.7433, lng: 114.6978, districts: ['源城区'] },
+          { name: '阳江', lat: 21.8581, lng: 111.9822, districts: ['江城区','阳东区'] },
+          { name: '清远', lat: 23.6818, lng: 113.0560, districts: ['清城区','清新区'] },
+          { name: '东莞', lat: 23.0208, lng: 113.7518, districts: ['莞城街道','南城街道','东城街道','万江街道','松山湖'] },
+          { name: '中山', lat: 22.5151, lng: 113.3926, districts: ['石岐街道','东区街道','西区街道','南区街道','五桂山街道'] },
+          { name: '潮州', lat: 23.6567, lng: 116.6228, districts: ['湘桥区','潮安区'] },
+          { name: '揭阳', lat: 23.5500, lng: 116.3728, districts: ['榕城区','揭东区'] },
+          { name: '云浮', lat: 22.9150, lng: 112.0444, districts: ['云城区','云安区'] }
+        ]
+      },
+      '广西壮族自治区': {
+        cities: [
+          { name: '南宁', lat: 22.8170, lng: 108.3665, districts: ['兴宁区','青秀区','江南区','西乡塘区','良庆区','邕宁区','武鸣区'] },
+          { name: '柳州', lat: 24.3260, lng: 109.4117, districts: ['城中区','鱼峰区','柳南区','柳北区','柳江区'] },
+          { name: '桂林', lat: 25.2744, lng: 110.2990, districts: ['秀峰区','叠彩区','象山区','七星区','雁山区','临桂区'] },
+          { name: '梧州', lat: 23.4770, lng: 111.2791, districts: ['万秀区','长洲区','龙圩区'] },
+          { name: '北海', lat: 21.4733, lng: 109.1198, districts: ['海城区','银海区','铁山港区'] },
+          { name: '防城港', lat: 21.6146, lng: 108.3544, districts: ['港口区','防城区'] },
+          { name: '钦州', lat: 21.9815, lng: 108.6543, districts: ['钦南区','钦北区'] },
+          { name: '贵港', lat: 23.1114, lng: 109.5980, districts: ['港北区','港南区','覃塘区'] },
+          { name: '玉林', lat: 22.6541, lng: 110.1540, districts: ['玉州区','福绵区'] },
+          { name: '百色', lat: 23.9025, lng: 106.6182, districts: ['右江区','田阳区'] },
+          { name: '贺州', lat: 24.4035, lng: 111.5522, districts: ['八步区','平桂区'] },
+          { name: '河池', lat: 24.6926, lng: 108.0853, districts: ['金城江区'] },
+          { name: '来宾', lat: 23.7506, lng: 109.2216, districts: ['兴宾区'] },
+          { name: '崇左', lat: 22.3767, lng: 107.3644, districts: ['江州区'] }
+        ]
+      },
+      '海南省': {
+        cities: [
+          { name: '海口', lat: 20.0440, lng: 110.1999, districts: ['秀英区','龙华区','琼山区','美兰区'] },
+          { name: '三亚', lat: 18.2524, lng: 109.5120, districts: ['海棠区','吉阳区','天涯区','崖州区'] },
+          { name: '三沙', lat: 16.8330, lng: 112.3320, districts: [] },
+          { name: '儋州', lat: 19.5217, lng: 109.5768, districts: [] }
+        ]
+      },
+      '四川省': {
+        cities: [
+          { name: '成都', lat: 30.5728, lng: 104.0668, districts: ['锦江区','青羊区','金牛区','武侯区','成华区','龙泉驿区','青白江区','新都区','温江区','双流区','郫都区','新津区'] },
+          { name: '自贡', lat: 29.3393, lng: 104.7784, districts: ['自流井区','贡井区','大安区','沿滩区'] },
+          { name: '攀枝花', lat: 26.5823, lng: 101.7188, districts: ['东区','西区','仁和区','米易县','盐边县'] },
+          { name: '泸州', lat: 28.8717, lng: 105.4423, districts: ['江阳区','纳溪区','龙马潭区'] },
+          { name: '德阳', lat: 31.1270, lng: 104.3981, districts: ['旌阳区','罗江区'] },
+          { name: '绵阳', lat: 31.4675, lng: 104.6796, districts: ['涪城区','游仙区','安州区'] },
+          { name: '广元', lat: 32.4353, lng: 105.8441, districts: ['利州区','昭化区','朝天区'] },
+          { name: '遂宁', lat: 30.5328, lng: 105.5929, districts: ['船山区','安居区'] },
+          { name: '内江', lat: 29.5871, lng: 105.0584, districts: ['市中区','东兴区'] },
+          { name: '乐山', lat: 29.5521, lng: 103.7660, districts: ['市中区','沙湾区','五通桥区','金口河区'] },
+          { name: '南充', lat: 30.7953, lng: 106.0667, districts: ['顺庆区','高坪区','嘉陵区'] },
+          { name: '眉山', lat: 30.0575, lng: 103.8318, districts: ['东坡区','彭山区'] },
+          { name: '宜宾', lat: 28.7513, lng: 104.6417, districts: ['翠屏区','南溪区','叙州区'] },
+          { name: '广安', lat: 30.4739, lng: 106.6333, districts: ['广安区','前锋区'] },
+          { name: '达州', lat: 31.2089, lng: 107.4682, districts: ['通川区','达川区'] },
+          { name: '雅安', lat: 29.9868, lng: 103.0012, districts: ['雨城区','名山区'] },
+          { name: '巴中', lat: 31.8692, lng: 106.7474, districts: ['巴州区','恩阳区'] },
+          { name: '资阳', lat: 30.1222, lng: 104.6279, districts: ['雁江区'] },
+          { name: '阿坝', lat: 31.8990, lng: 102.2214, districts: ['马尔康市','汶川县','理县','茂县','松潘县','九寨沟县'] },
+          { name: '甘孜', lat: 30.0488, lng: 101.9625, districts: ['康定市','泸定县','丹巴县','九龙县'] },
+          { name: '凉山', lat: 27.8868, lng: 102.2645, districts: ['西昌市','会理市','会东县','冕宁县'] }
+        ]
+      },
+      '贵州省': {
+        cities: [
+          { name: '贵阳', lat: 26.6470, lng: 106.6302, districts: ['南明区','云岩区','花溪区','乌当区','白云区','观山湖区'] },
+          { name: '六盘水', lat: 26.5918, lng: 104.8332, districts: ['钟山区','六枝特区','水城区','盘州市'] },
+          { name: '遵义', lat: 27.7257, lng: 106.9273, districts: ['红花岗区','汇川区','播州区'] },
+          { name: '安顺', lat: 26.2456, lng: 105.9462, districts: ['西秀区','平坝区'] },
+          { name: '毕节', lat: 27.3019, lng: 105.2847, districts: ['七星关区'] },
+          { name: '铜仁', lat: 27.7183, lng: 109.1896, districts: ['碧江区','万山区'] },
+          { name: '黔西南', lat: 25.0880, lng: 104.9062, districts: ['兴义市'] },
+          { name: '黔东南', lat: 26.5835, lng: 107.9829, districts: ['凯里市'] },
+          { name: '黔南', lat: 26.2582, lng: 107.5170, districts: ['都匀市'] }
+        ]
+      },
+      '云南省': {
+        cities: [
+          { name: '昆明', lat: 25.0389, lng: 102.7183, districts: ['五华区','盘龙区','官渡区','西山区','呈贡区','晋宁区','东川区'] },
+          { name: '曲靖', lat: 25.4900, lng: 103.7976, districts: ['麒麟区','沾益区','马龙区'] },
+          { name: '玉溪', lat: 24.3517, lng: 102.5459, districts: ['红塔区','江川区'] },
+          { name: '保山', lat: 25.1118, lng: 99.1671, districts: ['隆阳区'] },
+          { name: '昭通', lat: 27.3400, lng: 103.7251, districts: ['昭阳区'] },
+          { name: '丽江', lat: 26.8721, lng: 100.2299, districts: ['古城区','玉龙纳西族自治县'] },
+          { name: '普洱', lat: 22.8252, lng: 100.9660, districts: ['思茅区'] },
+          { name: '临沧', lat: 23.8866, lng: 100.0927, districts: ['临翔区'] },
+          { name: '大理', lat: 25.6065, lng: 100.2676, districts: ['大理市','祥云县','宾川县'] },
+          { name: '红河', lat: 23.3640, lng: 103.3756, districts: ['蒙自市','个旧市','开远市'] },
+          { name: '西双版纳', lat: 22.0074, lng: 100.7971, districts: ['景洪市'] },
+          { name: '楚雄', lat: 25.0292, lng: 101.5280, districts: ['楚雄市'] },
+          { name: '文山', lat: 23.3695, lng: 104.2445, districts: ['文山市'] },
+          { name: '德宏', lat: 24.4365, lng: 98.5854, districts: ['芒市','瑞丽市'] },
+          { name: '怒江', lat: 25.8170, lng: 98.7660, districts: ['泸水市'] },
+          { name: '迪庆', lat: 27.8190, lng: 99.7060, districts: ['香格里拉市'] }
+        ]
+      },
+      '西藏自治区': {
+        cities: [
+          { name: '拉萨', lat: 29.6500, lng: 91.1000, districts: ['城关区','堆龙德庆区','达孜区'] },
+          { name: '日喀则', lat: 29.2672, lng: 88.8809, districts: ['桑珠孜区'] },
+          { name: '昌都', lat: 31.1369, lng: 97.1786, districts: ['卡若区'] },
+          { name: '林芝', lat: 29.6486, lng: 94.3624, districts: ['巴宜区'] },
+          { name: '山南', lat: 29.2360, lng: 91.7730, districts: ['乃东区'] },
+          { name: '那曲', lat: 31.4760, lng: 92.0510, districts: ['色尼区'] },
+          { name: '阿里', lat: 32.5011, lng: 80.1055, districts: ['噶尔县'] }
+        ]
+      },
+      '陕西省': {
+        cities: [
+          { name: '西安', lat: 34.3416, lng: 108.9398, districts: ['新城区','碑林区','莲湖区','灞桥区','未央区','雁塔区','阎良区','临潼区','长安区','高陵区','鄠邑区'] },
+          { name: '铜川', lat: 34.8966, lng: 108.9451, districts: ['王益区','印台区','耀州区'] },
+          { name: '宝鸡', lat: 34.3618, lng: 107.2370, districts: ['渭滨区','金台区','陈仓区'] },
+          { name: '咸阳', lat: 34.3296, lng: 108.7089, districts: ['秦都区','杨陵区','渭城区'] },
+          { name: '渭南', lat: 34.4998, lng: 109.5098, districts: ['临渭区','华州区'] },
+          { name: '延安', lat: 36.5853, lng: 109.4898, districts: ['宝塔区','安塞区'] },
+          { name: '汉中', lat: 33.0674, lng: 107.0230, districts: ['汉台区','南郑区'] },
+          { name: '榆林', lat: 38.2853, lng: 109.7348, districts: ['榆阳区','横山区'] },
+          { name: '安康', lat: 32.6854, lng: 109.0293, districts: ['汉滨区'] },
+          { name: '商洛', lat: 33.8697, lng: 109.9400, districts: ['商州区'] }
+        ]
+      },
+      '甘肃省': {
+        cities: [
+          { name: '兰州', lat: 36.0611, lng: 103.8343, districts: ['城关区','七里河区','西固区','安宁区','红古区'] },
+          { name: '嘉峪关', lat: 39.7728, lng: 98.2893, districts: [] },
+          { name: '金昌', lat: 38.5200, lng: 102.1878, districts: ['金川区'] },
+          { name: '白银', lat: 36.5447, lng: 104.1389, districts: ['白银区','平川区'] },
+          { name: '天水', lat: 34.5809, lng: 105.7250, districts: ['秦州区','麦积区'] },
+          { name: '武威', lat: 37.9283, lng: 102.6346, districts: ['凉州区'] },
+          { name: '张掖', lat: 38.9320, lng: 100.4494, districts: ['甘州区'] },
+          { name: '平凉', lat: 35.5428, lng: 106.6652, districts: ['崆峒区'] },
+          { name: '酒泉', lat: 39.7320, lng: 98.4941, districts: ['肃州区'] },
+          { name: '庆阳', lat: 35.7341, lng: 107.6382, districts: ['西峰区'] },
+          { name: '定西', lat: 35.5806, lng: 104.6264, districts: ['安定区'] },
+          { name: '陇南', lat: 33.3886, lng: 104.9217, districts: ['武都区'] },
+          { name: '临夏', lat: 35.6011, lng: 103.2106, districts: ['临夏市'] },
+          { name: '甘南', lat: 34.9864, lng: 102.9110, districts: ['合作市'] },
+          { name: '敦煌', lat: 40.1421, lng: 94.6618, districts: [] }
+        ]
+      },
+      '青海省': {
+        cities: [
+          { name: '西宁', lat: 36.6171, lng: 101.7782, districts: ['城东区','城中区','城西区','城北区','湟中区','大通回族土族自治县','湟源县'] },
+          { name: '海东', lat: 36.5029, lng: 102.1028, districts: ['乐都区','平安区'] },
+          { name: '海北', lat: 36.9544, lng: 100.9010, districts: ['海晏县'] },
+          { name: '黄南', lat: 35.5178, lng: 102.0152, districts: ['同仁市'] },
+          { name: '海南', lat: 36.2863, lng: 100.6196, districts: ['共和县'] },
+          { name: '果洛', lat: 34.4804, lng: 100.2441, districts: ['玛沁县'] },
+          { name: '玉树', lat: 33.0038, lng: 97.0062, districts: ['玉树市'] },
+          { name: '海西', lat: 37.3737, lng: 97.3708, districts: ['格尔木市','德令哈市'] },
+          { name: '格尔木', lat: 36.4164, lng: 94.9055, districts: [] }
+        ]
+      },
+      '宁夏回族自治区': {
+        cities: [
+          { name: '银川', lat: 38.4872, lng: 106.2309, districts: ['兴庆区','西夏区','金凤区','永宁县','贺兰县'] },
+          { name: '石嘴山', lat: 38.9843, lng: 106.3762, districts: ['大武口区','惠农区'] },
+          { name: '吴忠', lat: 37.9862, lng: 106.1990, districts: ['利通区','红寺堡区'] },
+          { name: '固原', lat: 36.0160, lng: 106.2425, districts: ['原州区'] },
+          { name: '中卫', lat: 37.5149, lng: 105.1966, districts: ['沙坡头区'] }
+        ]
+      },
+      '新疆维吾尔自治区': {
+        cities: [
+          { name: '乌鲁木齐', lat: 43.8256, lng: 87.6168, districts: ['天山区','沙依巴克区','新市区','水磨沟区','头屯河区','达坂城区','米东区'] },
+          { name: '克拉玛依', lat: 45.5798, lng: 84.8892, districts: ['独山子区','克拉玛依区','白碱滩区','乌尔禾区'] },
+          { name: '吐鲁番', lat: 42.9513, lng: 89.1895, districts: ['高昌区'] },
+          { name: '哈密', lat: 42.8332, lng: 93.5149, districts: ['伊州区'] },
+          { name: '昌吉', lat: 44.0145, lng: 87.3081, districts: ['昌吉市'] },
+          { name: '博尔塔拉', lat: 44.9053, lng: 82.0749, districts: ['博乐市'] },
+          { name: '巴音郭楞', lat: 41.7689, lng: 86.1510, districts: ['库尔勒市'] },
+          { name: '阿克苏', lat: 41.1671, lng: 80.2651, districts: ['阿克苏市'] },
+          { name: '克孜勒苏', lat: 39.7133, lng: 76.1678, districts: ['阿图什市'] },
+          { name: '喀什', lat: 39.4547, lng: 75.9898, districts: ['喀什市'] },
+          { name: '和田', lat: 37.1107, lng: 79.9302, districts: ['和田市'] },
+          { name: '伊犁', lat: 43.9087, lng: 81.2798, districts: ['伊宁市'] },
+          { name: '塔城', lat: 46.7453, lng: 82.9869, districts: ['塔城市'] },
+          { name: '阿勒泰', lat: 47.8484, lng: 88.1396, districts: ['阿勒泰市'] }
+        ]
+      },
+      '香港特别行政区': {
+        cities: [
+          { name: '香港', lat: 22.3193, lng: 114.1694, districts: ['中西区','湾仔区','东区','南区','油尖旺区','深水埗区','九龙城区','黄大仙区','观塘区','葵青区','荃湾区','屯门区','元朗区','北区','大埔区','沙田区','西贡区','离岛区'] }
+        ]
+      },
+      '澳门特别行政区': {
+        cities: [
+          { name: '澳门', lat: 22.1987, lng: 113.5439, districts: ['花地玛堂区','花王堂区','望德堂区','大堂区','风顺堂区','嘉模堂区','路氹填海区','圣方济各堂区'] }
+        ]
+      },
+      '台湾省': {
+        cities: [
+          { name: '台北', lat: 25.0330, lng: 121.5654, districts: ['中正区','大同区','中山区','松山区','大安区','万华区','信义区','士林区','北投区','内湖区','南港区','文山区'] },
+          { name: '新北', lat: 25.0120, lng: 121.4653, districts: [] },
+          { name: '桃园', lat: 24.9936, lng: 121.3010, districts: [] },
+          { name: '台中', lat: 24.1477, lng: 120.6736, districts: [] },
+          { name: '台南', lat: 22.9999, lng: 120.2269, districts: [] },
+          { name: '高雄', lat: 22.6273, lng: 120.3014, districts: [] }
+        ]
+      }
+    };
+
+    // ========================================================================
+    // ==================== GeoWriter: 纯前端野外记录生成 ====================
+    // ========================================================================
+
+    // 岩石知识库
+    var ROCK_DB = {
+      '花岗岩': { type:'酸性深成岩', colors:['肉红色','浅灰色'], structure:'中粗粒等粒结构', texture:'块状构造', minerals:'石英(约28%)、钾长石(约40%)、斜长石(约25%)、黑云母(约5%)', rule:'石英+钾长石+斜长石，钾长石>斜长石' },
+      '闪长岩': { type:'中性深成岩', colors:['灰绿色','灰色'], structure:'中粒等粒结构', texture:'块状构造', minerals:'斜长石(约60%)、角闪石(约30%)、黑云母(约8%)', rule:'角闪石+斜长石，无石英或极少' },
+      '辉长岩': { type:'基性深成岩', colors:['灰黑色','绿黑色'], structure:'粗粒等粒结构', texture:'块状构造', minerals:'斜长石(约55%)、辉石(约40%)、橄榄石(约3%)', rule:'辉石+斜长石，暗色矿物>40%' },
+      '玄武岩': { type:'基性喷出岩', colors:['黑色','暗灰色'], structure:'细粒结构', texture:'气孔构造/杏仁构造', minerals:'斜长石(约50%)、辉石(约40%)、橄榄石(约8%)', rule:'暗色+气孔/杏仁构造' },
+      '流纹岩': { type:'酸性喷出岩', colors:['粉红色','灰色'], structure:'斑状结构', texture:'流纹构造', minerals:'透长石(约35%)、石英(约30%)、黑云母(约15%)', rule:'流纹构造+斑状结构' },
+      '安山岩': { type:'中性喷出岩', colors:['紫灰色','灰色'], structure:'斑状结构', texture:'块状构造/气孔构造', minerals:'斜长石(约55%)、角闪石(约25%)、黑云母(约10%)', rule:'中性喷出岩，斑状结构' },
+      '砂岩': { type:'沉积岩', colors:['黄色','灰白色','红色'], structure:'中粒-细粒结构', texture:'层理构造', minerals:'石英(约70%)、长石(约15%)、岩屑(约12%)', rule:'粒状+层理构造' },
+      '页岩': { type:'沉积岩', colors:['黑灰色','灰色','灰绿色'], structure:'泥质结构', texture:'薄层理/页理', minerals:'粘土矿物(约70%)、石英粉砂(约20%)、云母(约8%)', rule:'薄层理+泥质' },
+      '石灰岩': { type:'沉积岩', colors:['灰白色','深灰色','黑色'], structure:'隐晶质-微晶结构', texture:'块状构造/层理构造', minerals:'方解石(约90%)、白云石(约5%)、粘土(约3%)', rule:'加稀盐酸起泡' },
+      '白云岩': { type:'沉积岩', colors:['灰白色','浅黄色'], structure:'细晶结构', texture:'块状构造', minerals:'白云石(约90%)、方解石(约5%)、石英(约3%)', rule:'白色+粉末+稀盐酸微起泡' },
+      '砾岩': { type:'沉积岩', colors:['杂色','灰色'], structure:'砾质结构', texture:'块状构造/层理构造', minerals:'砾石(约60%)、砂质充填物(约30%)、泥质(约8%)', rule:'可见明显砾石' },
+      '泥岩': { type:'沉积岩', colors:['紫红色','灰色','绿色'], structure:'泥质结构', texture:'块状构造', minerals:'粘土矿物(约75%)、石英粉砂(约15%)、铁质(约8%)', rule:'泥质+块状+无层理' },
+      '片麻岩': { type:'变质岩', colors:['灰白色','黑白色相间'], structure:'中粗粒变晶结构', texture:'片麻状构造', minerals:'石英(约30%)、长石(约35%)、黑云母(约20%)、角闪石(约12%)', rule:'片麻状构造+条带状' },
+      '大理岩': { type:'变质岩', colors:['白色','灰白色','绿色'], structure:'粒状变晶结构', texture:'块状构造', minerals:'方解石(约90%)、白云石(约5%)、透辉石(约3%)', rule:'石灰岩变质+粒状变晶' },
+      '片岩': { type:'变质岩', colors:['银灰色','绿色','黑色'], structure:'鳞片变晶结构', texture:'片状构造', minerals:'云母(约40%)、石英(约30%)、长石(约15%)、石榴石(约10%)', rule:'片状构造+鳞片状矿物' },
+      '板岩': { type:'变质岩', colors:['灰黑色','深灰色'], structure:'隐晶质结构', texture:'板状构造/劈理', minerals:'粘土矿物(约60%)、石英(约25%)、绢云母(约12%)', rule:'板状构造+可劈开成薄板' },
+      '千枚岩': { type:'变质岩', colors:['银灰色','绿色'], structure:'细粒鳞片变晶结构', texture:'千枚状构造', minerals:'绢云母(约50%)、石英(约30%)、绿泥石(约15%)', rule:'千枚状构造+丝绢光泽' },
+      '石英岩': { type:'变质岩', colors:['白色','灰白色'], structure:'粒状变晶结构', texture:'块状构造', minerals:'石英(约90%)、长石(约5%)、云母(约3%)', rule:'石英>85%+粒状变晶+坚硬' },
+      '混合岩': { type:'变质岩', colors:['黑白条带相间'], structure:'中粗粒结构', texture:'条带状构造/眼球状构造', minerals:'长石+石英(脉体约50%)、暗色矿物(基体约50%)', rule:'浅色脉体+暗色基体条带' },
+      '花岗片麻岩': { type:'变质岩', colors:['肉红色+灰黑色'], structure:'中粗粒变晶结构', texture:'片麻状构造', minerals:'钾长石(约30%)、石英(约25%)、斜长石(约20%)、黑云母(约20%)', rule:'花岗岩变质+片麻状构造' }
+    };
+
+    // 颜色关键词映射
+    var COLOR_MAP = { '肉红':'肉红色','浅灰':'浅灰色','灰白':'灰白色','灰黑':'灰黑色','黑':'黑色','暗灰':'暗灰色','灰绿':'灰绿色','绿黑':'绿黑色','紫灰':'紫灰色','红':'红色','黄':'黄色','白':'白色','灰':'灰色','深灰':'深灰色','银灰':'银灰色','棕':'棕色','褐':'褐色','紫红':'紫红色','浅黄':'浅黄色' };
+
+    // 结构关键词
+    var STRUCTURE_MAP = { '粗粒':'粗粒结构','中粒':'中粒结构','细粒':'细粒结构','微粒':'微粒结构','斑状':'斑状结构','等粒':'等粒结构','不等粒':'不等粒结构','隐晶':'隐晶质结构','微晶':'微晶结构','泥质':'泥质结构','砾质':'砾质结构','鳞片':'鳞片变晶结构','粒状变晶':'粒状变晶结构','角砾':'角砾状结构','气孔':'气孔构造','杏仁':'杏仁构造' };
+
+    // 矿物关键词
+    var MINERAL_LIST = ['石英','钾长石','斜长石','正长石','黑云母','白云母','角闪石','辉石','橄榄石','方解石','白云石','粘土','云母','长石','黄铁矿','绿泥石','绢云母','石榴石'];
+
+    // 方位关键词
+    var DIRECTION_MAP = { '东':'东','西':'西','南':'南','北':'北','东北':'东北','西北':'西北','东南':'东南','西南':'西南','东边':'东','西边':'西','南边':'南','北边':'北','东侧':'东','西侧':'西','南侧':'南','北侧':'北' };
+
+    // 参照物
+    var REFERENCE_LIST = ['学校','水库','公路','冲沟','采石场','铁路','桥梁','村庄','河流','山','山脚','山顶','山腰','基地','营地','隧道','边坡','基坑','钻孔','探槽','废采石场'];
+
+    // 风化程度
+    var WEATHERING_MAP = { '全风化':'全风化','强风化':'强风化','中风化':'中等风化','弱风化':'弱风化','微风化':'微风化','新鲜':'新鲜','未风化':'新鲜' };
+
+    // 化石关键词
+    var FOSSIL_MAP = { '珊瑚':'珊瑚','腕足':'腕足类','三叶虫':'三叶虫','菊石':'菊石','笔石':'笔石','双壳':'双壳类','腹足':'腹足类','植物':'植物化石','孢子':'孢子花粉','骨':'骨骼化石' };
+
+    // 接触关系
+    var CONTACT_MAP = { '侵入':'侵入接触','断层':'断层接触','整合':'整合接触','不整合':'不整合接触','平行':'平行不整合','角度':'角度不整合' };
+
+    // 快捷示例文本
+    var GW_EXAMPLES = {
+      granite: '在学校东边300米处的公路旁露头，看到肉红色的花岗岩，中粒等粒结构，块状构造，主要由石英、钾长石和斜长石组成，含少量黑云母。产状215度角60度，与围岩呈侵入接触关系。岩石表面中等风化，节理发育。',
+      shale: '在水库西边约500米的冲沟内，出露一套灰黑色的页岩，泥质结构，薄层理发育，层厚约2-5cm。页岩中含丰富的笔石化石。在页岩层上方覆盖一层黄褐色的砂岩，两者之间可见明显的平行不整合面。页岩产状130度角35度，局部有小断层发育，断距约0.5米。',
+      gabbro: '在采石场南侧露头处，观察到大面积出露的灰黑色辉长岩，粗粒等粒结构，块状构造。主要由斜长石和辉石组成，暗色矿物含量超过40%，含少量橄榄石。岩石新鲜面呈深灰绿色，微风化。产状320度角70度。在辉长岩边缘可见与围岩的侵入接触带，接触带宽度约2米，围岩有明显的烘烤现象。'
+    };
+
+    // ===== 1. 信息提取函数 =====
+    function extractInfoLocal(text) {
+      var info = {
+        direction: '',
+        distance: '',
+        reference: '',
+        color: '',
+        rockName: '',
+        rockType: '',
+        structure: '',
+        texture: '',
+        minerals: [],
+        attitude: '',
+        weathering: '',
+        fossils: [],
+        contact: '',
+        stratumCode: '',
+        otherDesc: text
+      };
+
+      // 方位提取
+      var dirs = [];
+      for (var key in DIRECTION_MAP) {
+        if (text.indexOf(key) !== -1) {
+          dirs.push(DIRECTION_MAP[key]);
+        }
+      }
+      if (dirs.length > 0) info.direction = dirs.join('');
+
+      // 距离提取
+      var distMatch = text.match(/(\d+)\s*米/);
+      if (distMatch) info.distance = distMatch[1] + '米';
+
+      // 参照物
+      for (var i = 0; i < REFERENCE_LIST.length; i++) {
+        if (text.indexOf(REFERENCE_LIST[i]) !== -1) {
+          info.reference = REFERENCE_LIST[i];
+          break;
+        }
+      }
+
+      // 颜色
+      for (var key in COLOR_MAP) {
+        if (text.indexOf(key) !== -1) {
+          info.color = COLOR_MAP[key];
+          break;
+        }
+      }
+
+      // 结构
+      for (var key in STRUCTURE_MAP) {
+        if (text.indexOf(key) !== -1) {
+          info.structure = STRUCTURE_MAP[key];
+          break;
+        }
+      }
+
+      // 矿物
+      for (var i = 0; i < MINERAL_LIST.length; i++) {
+        if (text.indexOf(MINERAL_LIST[i]) !== -1) {
+          info.minerals.push(MINERAL_LIST[i]);
+        }
+      }
+
+      // 产状 - 多种正则模式
+      var attPatterns = [
+        /(\d+)\s*[°度]\s*[∠角]\s*(\d+)\s*[°度]?/,
+        /(\d+)\s*方向\s*(\d+)\s*[°度]?/,
+        /走向\s*(\d+)\s*[°度]?\s*[，,]?\s*倾角?\s*(\d+)\s*[°度]?/
+      ];
+      for (var p = 0; p < attPatterns.length; p++) {
+        var attMatch = text.match(attPatterns[p]);
+        if (attMatch) {
+          info.attitude = attMatch[1] + '\u00B0\u2220' + attMatch[2] + '\u00B0';
+          break;
+        }
+      }
+
+      // 风化程度
+      for (var key in WEATHERING_MAP) {
+        if (text.indexOf(key) !== -1) {
+          info.weathering = WEATHERING_MAP[key];
+          break;
+        }
+      }
+
+      // 化石
+      for (var key in FOSSIL_MAP) {
+        if (text.indexOf(key) !== -1) {
+          info.fossils.push(FOSSIL_MAP[key]);
+        }
+      }
+
+      // 接触关系
+      for (var key in CONTACT_MAP) {
+        if (text.indexOf(key) !== -1) {
+          info.contact = CONTACT_MAP[key];
+          break;
+        }
+      }
+
+      // 岩性定名 - 基于关键词匹配
+      var rockKeywords = Object.keys(ROCK_DB);
+      for (var i = 0; i < rockKeywords.length; i++) {
+        if (text.indexOf(rockKeywords[i]) !== -1) {
+          info.rockName = rockKeywords[i];
+          info.rockType = ROCK_DB[rockKeywords[i]].type;
+          break;
+        }
+      }
+
+      // 如果没有匹配到岩性名，尝试通过矿物组合推断
+      if (!info.rockName && info.minerals.length > 0) {
+        var hasQuartz = info.minerals.indexOf('石英') !== -1;
+        var hasKfeldspar = info.minerals.indexOf('钾长石') !== -1 || info.minerals.indexOf('正长石') !== -1;
+        var hasPlagioclase = info.minerals.indexOf('斜长石') !== -1;
+        var hasHornblende = info.minerals.indexOf('角闪石') !== -1;
+        var hasPyroxene = info.minerals.indexOf('辉石') !== -1;
+        var hasOlivine = info.minerals.indexOf('橄榄石') !== -1;
+        var hasCalcite = info.minerals.indexOf('方解石') !== -1;
+        var hasBiotite = info.minerals.indexOf('黑云母') !== -1;
+
+        if (hasQuartz && hasKfeldspar && hasPlagioclase) {
+          info.rockName = '花岗岩'; info.rockType = '酸性深成岩';
+        } else if (hasHornblende && hasPlagioclase && !hasQuartz) {
+          info.rockName = '闪长岩'; info.rockType = '中性深成岩';
+        } else if (hasPyroxene && hasPlagioclase) {
+          info.rockName = '辉长岩'; info.rockType = '基性深成岩';
+        } else if (hasCalcite) {
+          info.rockName = '石灰岩'; info.rockType = '沉积岩';
+        }
+      }
+
+      // 补充构造描述
+      if (text.indexOf('节理') !== -1) info.otherDesc += ' [节理发育]';
+      if (text.indexOf('断层') !== -1) info.otherDesc += ' [断层发育]';
+      if (text.indexOf('褶皱') !== -1) info.otherDesc += ' [褶皱构造]';
+
+      return info;
+    }
+
+    // ===== 2. 记录生成函数 =====
+    function generateRecordLocal(info) {
+      var today = new Date();
+      var dateStr = today.getFullYear() + '年' +
+        String(today.getMonth() + 1).padStart(2, '0') + '月' +
+        String(today.getDate()).padStart(2, '0') + '日';
+      var pointId = 'D' + String(gwRecordCounter).padStart(3, '0');
+
+      var lines = [];
+      lines.push('点号：' + pointId);
+      lines.push('坐标：[待GPS记录]');
+      lines.push('日期：' + dateStr);
+      lines.push('');
+
+      // 点位描述
+      var locDesc = '观测点位于';
+      if (info.reference) locDesc += info.reference;
+      else locDesc += '野外露头处';
+      if (info.direction) locDesc += info.direction;
+      if (info.distance) locDesc += '约' + info.distance;
+      locDesc += '。';
+      lines.push('【点位描述】' + locDesc);
+
+      // 露头描述
+      var outcropDesc = '露头类型：天然露头。';
+      if (info.weathering) outcropDesc += '风化程度：' + info.weathering + '。';
+      if (info.attitude) outcropDesc += '产状：' + info.attitude + '。';
+      lines.push('【露头描述】' + outcropDesc);
+
+      // 岩性描述
+      var rockDesc = '';
+      if (info.color) rockDesc += '岩石呈' + info.color + '，';
+      else rockDesc += '岩石颜色未记录，';
+      if (info.structure) rockDesc += info.structure + '，';
+      if (info.texture) rockDesc += info.texture + '。';
+      else rockDesc += '块状构造。';
+
+      if (info.minerals.length > 0) {
+        rockDesc += '主要矿物成分包括：' + info.minerals.join('、') + '。';
+      }
+
+      if (info.rockName) {
+        var rockInfo = ROCK_DB[info.rockName];
+        rockDesc += '综合定名为' + info.rockName + '（' + info.rockType + '）。';
+        if (rockInfo && !info.structure && rockInfo.structure) {
+          rockDesc = rockDesc.replace(info.structure + '，', rockInfo.structure + '，');
+        }
+      } else {
+        rockDesc += '岩性待进一步鉴定。';
+      }
+      lines.push('【岩性描述】' + rockDesc);
+
+      // 构造描述
+      var structDesc = '';
+      if (info.attitude) structDesc += '岩层产状为' + info.attitude + '。';
+      if (info.contact) structDesc += '与围岩呈' + info.contact + '。';
+      if (info.fossils.length > 0) structDesc += '含化石：' + info.fossils.join('、') + '。';
+      if (textContainsAny(info.otherDesc, ['节理', '断层', '褶皱'])) {
+        if (info.otherDesc.indexOf('节理') !== -1) structDesc += '节理较发育。';
+        if (info.otherDesc.indexOf('断层') !== -1) structDesc += '见断层构造。';
+        if (info.otherDesc.indexOf('褶皱') !== -1) structDesc += '见褶皱构造。';
+      }
+      if (!structDesc) structDesc = '构造特征不明显，未见明显变形构造。';
+      lines.push('【构造描述】' + structDesc);
+
+      // 样品记录
+      lines.push('【样品记录】未采集样品。');
+
+      return lines.join('\n');
+    }
+
+    function textContainsAny(text, keywords) {
+      for (var i = 0; i < keywords.length; i++) {
+        if (text.indexOf(keywords[i]) !== -1) return true;
+      }
+      return false;
+    }
+
+    // ===== GeoWriter UI Functions =====
+    function fillGWExample(type) {
+      var textarea = document.getElementById('gwInput');
+      textarea.value = GW_EXAMPLES[type] || '';
+      textarea.focus();
+    }
+
+    function generateGeoRecord() {
+      var text = document.getElementById('gwInput').value.trim();
+      if (!text) {
+        showToast('请先输入野外口语笔记！');
+        return;
+      }
+
+      var info = extractInfoLocal(text);
+      gwLastInfo = info;
+      var record = generateRecordLocal(info);
+      gwLastResult = record;
+      gwRecordCounter++;
+
+      // Show preview
+      document.getElementById('gwResultPreview').textContent = record;
+      document.getElementById('btnViewDetail').style.display = 'inline-flex';
+      document.getElementById('btnLinkCity').style.display = 'inline-flex';
+      document.getElementById('btnAddCollection').style.display = 'inline-flex';
+
+      showToast('地质记录生成成功！');
+    }
+
+    function viewRecordDetail() {
+      if (!gwLastResult) return;
+
+      // Update detail view
+      document.getElementById('gwNoSelection').style.display = 'none';
+      document.getElementById('gwDetailContent').style.display = 'block';
+
+      // Meta info
+      var info = gwLastInfo;
+      var metaHtml = '';
+      if (info.rockName) {
+        metaHtml += '<div class="gw-detail-meta-item"><div class="meta-val">' + info.rockName + '</div><div class="meta-label">岩性</div></div>';
+      }
+      if (info.rockType) {
+        metaHtml += '<div class="gw-detail-meta-item"><div class="meta-val">' + info.rockType + '</div><div class="meta-label">岩石类型</div></div>';
+      }
+      if (info.color) {
+        metaHtml += '<div class="gw-detail-meta-item"><div class="meta-val">' + info.color + '</div><div class="meta-label">颜色</div></div>';
+      }
+      if (info.attitude) {
+        metaHtml += '<div class="gw-detail-meta-item"><div class="meta-val">' + info.attitude + '</div><div class="meta-label">产状</div></div>';
+      }
+      document.getElementById('gwDetailMeta').innerHTML = metaHtml;
+
+      // Format record with section titles highlighted
+      var formatted = gwLastResult
+        .replace(/【([^】]+)】/g, '<span class="gw-section-title">【$1】</span>');
+      document.getElementById('gwDetailRecord').innerHTML = formatted;
+
+      // Switch to geowriter view
+      switchView('geowriter');
+    }
+
+    function copyRecordText() {
+      if (!gwLastResult) return;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(gwLastResult).then(function() {
+          showToast('记录文本已复制到剪贴板！');
+        });
+      } else {
+        // Fallback
+        var ta = document.createElement('textarea');
+        ta.value = gwLastResult;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        showToast('记录文本已复制到剪贴板！');
+      }
+    }
+
+    function linkRecordToCity() {
+      if (!gwLastResult) { showToast('请先生成记录！'); return; }
+      var province = document.getElementById('gwProvinceSelect').value;
+      var cityName = document.getElementById('gwCitySelect').value;
+      var districtName = document.getElementById('gwDistrictSelect').value;
+      if (!province || !cityName) { showToast('请先选择省份和城市！'); return; }
+
+      var cityData = CHINA_REGIONS[province].cities.find(function(c) { return c.name === cityName; });
+      if (!cityData) return;
+
+      // Build location string: province + city + district (if selected)
+      var locationStr = province + ' ' + cityName;
+      if (districtName) locationStr += ' ' + districtName;
+
+      var today = new Date().toISOString().split('T')[0];
+      var record = {
+        id: workRecordIdCounter++,
+        city: cityName,
+        province: province,
+        district: districtName || '',
+        lat: cityData.lat,
+        lng: cityData.lng,
+        location: locationStr,
+        type: 'fieldrecord',
+        desc: '【GeoWriter】' + (gwLastInfo.rockName || '未知岩性') + ' - ' + (gwLastInfo.color || '') + ' ' + (gwLastInfo.structure || ''),
+        date: today,
+        gwFullText: gwLastResult
+      };
+      workRecords.push(record);
+
+      if (cityMarkers[cityName]) {
+        cityMarkers[cityName].records.push(record);
+        updateCityMarker(cityName);
+      }
+
+      updateWorkRecordList();
+      showToast('已将记录关联到 ' + cityName + '！城市标记已更新。');
+
+      // Switch to map tab to show
+      switchSidebarTab('map');
+      switchView('map');
+      setTimeout(function() {
+        if (map) {
+          map.setView([cityData.lat, cityData.lng], 8);
+          if (cityMarkers[cityName] && cityMarkers[cityName].marker) {
+            cityMarkers[cityName].marker.openPopup();
+          }
+        }
+      }, 300);
+    }
+
+    function addToCollection() {
+      if (!gwLastResult) { showToast('请先生成记录！'); return; }
+
+      var record = {
+        id: gwRecordCounter,
+        text: gwLastResult,
+        info: gwLastInfo,
+        date: new Date().toISOString().split('T')[0],
+        rockName: gwLastInfo.rockName || '未定名'
+      };
+      gwCollection.push(record);
+      updateCollectionList();
+      showToast('已加入合集！当前共 ' + gwCollection.length + ' 条记录。');
+    }
+
+    function updateCollectionList() {
+      document.getElementById('gwCollectionCount').textContent = gwCollection.length;
+      var container = document.getElementById('gwCollectionList');
+      if (gwCollection.length === 0) {
+        container.innerHTML = '<div style="font-size:0.75rem;color:var(--muted);text-align:center;padding:12px;">生成记录后可加入合集管理</div>';
+        return;
+      }
+      container.innerHTML = gwCollection.map(function(r, idx) {
+        return '<div class="gw-collection-item" onclick="viewCollectionItem(' + idx + ')">' +
+          '<div class="gw-collection-item-title">D' + String(r.id).padStart(3, '0') + ' - ' + r.rockName + '</div>' +
+          '<div class="gw-collection-item-sub">' + r.date + ' | ' + (r.info.color || '') + ' ' + (r.info.structure || '') + '</div>' +
+        '</div>';
+      }).join('');
+    }
+
+    function viewCollectionItem(idx) {
+      var item = gwCollection[idx];
+      if (!item) return;
+      gwLastResult = item.text;
+      gwLastInfo = item.info;
+      viewRecordDetail();
+    }
+
+    // ===== Populate Province/City/District Cascade Selects =====
+    function populateGWProvinceSelect() {
+      var select = document.getElementById('gwProvinceSelect');
+      Object.keys(CHINA_REGIONS).forEach(function(province) {
+        var opt = document.createElement('option');
+        opt.value = province;
+        opt.textContent = province;
+        select.appendChild(opt);
+      });
+    }
+
+    function onProvinceChange() {
+      var province = document.getElementById('gwProvinceSelect').value;
+      var citySelect = document.getElementById('gwCitySelect');
+      var districtSelect = document.getElementById('gwDistrictSelect');
+
+      // Reset city and district
+      citySelect.innerHTML = '<option value="">-- 选择城市 --</option>';
+      districtSelect.innerHTML = '<option value="">-- 先选择城市 --</option>';
+      districtSelect.disabled = true;
+
+      if (!province) {
+        citySelect.disabled = true;
+        updateLinkButtonVisibility();
+        return;
+      }
+
+      citySelect.disabled = false;
+      var cities = CHINA_REGIONS[province].cities;
+      cities.forEach(function(city) {
+        var opt = document.createElement('option');
+        opt.value = city.name;
+        opt.textContent = city.name;
+        citySelect.appendChild(opt);
+      });
+      updateLinkButtonVisibility();
+    }
+
+    function onCityChange() {
+      var province = document.getElementById('gwProvinceSelect').value;
+      var cityName = document.getElementById('gwCitySelect').value;
+      var districtSelect = document.getElementById('gwDistrictSelect');
+
+      districtSelect.innerHTML = '<option value="">-- 不选区（到市即可） --</option>';
+
+      if (!province || !cityName) {
+        districtSelect.disabled = true;
+        updateLinkButtonVisibility();
+        return;
+      }
+
+      var cityData = CHINA_REGIONS[province].cities.find(function(c) { return c.name === cityName; });
+      if (cityData && cityData.districts && cityData.districts.length > 0) {
+        districtSelect.disabled = false;
+        cityData.districts.forEach(function(d) {
+          var opt = document.createElement('option');
+          opt.value = d;
+          opt.textContent = d;
+          districtSelect.appendChild(opt);
+        });
+      } else {
+        districtSelect.disabled = true;
+      }
+      updateLinkButtonVisibility();
+    }
+
+    function updateLinkButtonVisibility() {
+      var province = document.getElementById('gwProvinceSelect').value;
+      var cityName = document.getElementById('gwCitySelect').value;
+      var btn = document.getElementById('btnLinkCity');
+      if (btn) {
+        btn.style.display = (province && cityName) ? 'inline-block' : 'none';
+      }
+    }
+
+    // ========================================================================
+    // ==================== Three.js Init ====================
+    // ========================================================================
+    function initThree() {
+      var container = document.getElementById('canvas-container');
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x1a1a2e);
+      scene.fog = new THREE.FogExp2(0x1a1a2e, 0.001);
+
+      camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 2000);
+      camera.position.set(450, -50, 350);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(container.clientWidth, container.clientHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      container.appendChild(renderer.domElement);
+      renderer.domElement.addEventListener('mousemove', onMouseMove);
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.12;
+      controls.rotateSpeed = 0.8;
+      controls.zoomSpeed = 1.2;
+      controls.panSpeed = 0.8;
+      controls.target.set(200, 200, 15);
+      controls.maxDistance = 800;
+      controls.minDistance = 30;
+      controls.enableKeys = true;
+      // 移动端触控优化
+      controls.touches = {
+        ONE: THREE.TOUCH.ROTATE,
+        TWO: THREE.TOUCH.DOLLY_PAN
+      };
+
+      // 阻止 canvas 上的默认触控行为（避免页面滚动/缩放）
+      renderer.domElement.addEventListener('touchstart', function(e) {
+        if (e.touches.length === 2) { e.preventDefault(); }
+      }, { passive: false });
+      renderer.domElement.addEventListener('touchmove', function(e) {
+        e.preventDefault();
+      }, { passive: false });
+      // 防止 iOS 长按弹出菜单
+      renderer.domElement.style.webkitTouchCallout = 'none';
+      renderer.domElement.style.webkitUserSelect = 'none';
+      renderer.domElement.style.userSelect = 'none';
+
+      // Lights - 专业地质建模风格光照
+      var ambient = new THREE.AmbientLight(0x404060, 0.6);
+      scene.add(ambient);
+      // 半球光模拟天空+地面反射
+      var hemiLight = new THREE.HemisphereLight(0x87CEEB, 0x362D26, 0.4);
+      scene.add(hemiLight);
+      // 主方向光（模拟太阳）
+      var dirLight = new THREE.DirectionalLight(0xfff5e6, 1.0);
+      dirLight.position.set(300, 400, 500);
+      dirLight.castShadow = true;
+      scene.add(dirLight);
+      // 冷色补光
+      var dirLight2 = new THREE.DirectionalLight(0x88bbff, 0.3);
+      dirLight2.position.set(-200, -100, 300);
+      scene.add(dirLight2);
+
+      // Groups
+      boreholeGroup = new THREE.Group();
+      stratumGroup = new THREE.Group();
+      gridGroup = new THREE.Group();
+      sectionGroup = new THREE.Group();
+      scene.add(boreholeGroup);
+      scene.add(stratumGroup);
+      scene.add(gridGroup);
+      scene.add(sectionGroup);
+
+      buildGroundGrid();
+
+      var axesHelper = new THREE.AxesHelper(50);
+      axesHelper.position.set(50, 50, 0);
+      scene.add(axesHelper);
+
+      window.addEventListener('resize', onWindowResize);
+      animate();
+    }
+
+    function onWindowResize() {
+      var container = document.getElementById('canvas-container');
+      camera.aspect = container.clientWidth / container.clientHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(container.clientWidth, container.clientHeight);
+    }
+
+    // ==================== Raycaster & Tooltip ====================
+    var raycaster = new THREE.Raycaster();
+    var mouse = new THREE.Vector2();
+    var collarMeshes = []; // 存储所有孔口球体引用
+
+    function onMouseMove(event) {
+      var rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      var intersects = raycaster.intersectObjects(collarMeshes);
+      var tooltip = document.getElementById('bh-tooltip');
+      if (intersects.length > 0) {
+        var mesh = intersects[0].object;
+        var data = mesh.userData;
+        if (data && data.boreholeId) {
+          var bh = boreholes.find(function(b) { return b.id === data.boreholeId; });
+          if (bh) {
+            tooltip.innerHTML = '<strong>' + bh.name + '</strong><br>'
+              + '坐标: X=' + bh.x + ' Y=' + bh.y + ' Z=' + bh.z + '<br>'
+              + '孔深: ' + bh.depth + 'm<br>'
+              + '分层: ' + bh.layers.length + '层';
+            tooltip.style.display = 'block';
+            tooltip.style.left = (event.clientX - rect.left + 15) + 'px';
+            tooltip.style.top = (event.clientY - rect.top - 10) + 'px';
+            renderer.domElement.style.cursor = 'pointer';
+            return;
+          }
+        }
+      }
+      tooltip.style.display = 'none';
+      renderer.domElement.style.cursor = 'grab';
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    // ==================== Ground Grid ====================
+    function buildGroundGrid() {
+      gridGroup.clear();
+      var size = 400, res = 60, offset = 0;
+      // DTM地形面（带自然起伏）
+      var dtmVerts = [];
+      var dtmIndices = [];
+      for (var i = 0; i <= res; i++) {
+        for (var j = 0; j <= res; j++) {
+          var px = offset + (i / res) * size;
+          var py = offset + (j / res) * size;
+          var pz = Math.sin(px * 0.02) * Math.cos(py * 0.025) * 3 + Math.sin(px * 0.05 + py * 0.03) * 1.5;
+          dtmVerts.push(px, py, pz);
+          if (i < res && j < res) {
+            var idx = i * (res + 1) + j;
+            dtmIndices.push(idx, idx + 1, idx + res + 1);
+            dtmIndices.push(idx + 1, idx + res + 2, idx + res + 1);
+          }
+        }
+      }
+      var dtmGeo = new THREE.BufferGeometry();
+      dtmGeo.setAttribute('position', new THREE.Float32BufferAttribute(dtmVerts, 3));
+      dtmGeo.setIndex(dtmIndices);
+      dtmGeo.computeVertexNormals();
+      var dtmMat = new THREE.MeshPhongMaterial({
+        color: 0x2a3a2a, side: THREE.DoubleSide,
+        transparent: true, opacity: 0.35, shininess: 5
+      });
+      gridGroup.add(new THREE.Mesh(dtmGeo, dtmMat));
+      // 网格线叠加
+      var gridMat = new THREE.LineBasicMaterial({ color: 0x3a5a52, transparent: true, opacity: 0.25 });
+      var step = size / 20;
+      for (var i = 0; i <= 20; i++) {
+        var pos = offset + i * step;
+        var g1 = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(offset, pos, 0.1), new THREE.Vector3(offset + size, pos, 0.1)
+        ]);
+        gridGroup.add(new THREE.Line(g1, gridMat));
+        var g2 = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(pos, offset, 0.1), new THREE.Vector3(pos, offset + size, 0.1)
+        ]);
+        gridGroup.add(new THREE.Line(g2, gridMat));
+      }
+    }
+
+    // ==================== Sample Data ====================
+    var LAYER_DEFS = [
+      { name: '第四系表土', top: 0, bottom: 3, color: 0xCD853F },
+      { name: '第四系砂砾石', top: 3, bottom: 12, color: 0xFFD700 },
+      { name: '白垩系砂岩', top: 12, bottom: 30, color: 0xFF8C42 },
+      { name: '侏罗系泥岩', top: 30, bottom: 50, color: 0x9ACD32 },
+      { name: '三叠系灰岩', top: 50, bottom: 70, color: 0x87CEEB },
+      { name: '二叠系页岩', top: 70, bottom: 85, color: 0x7CFC00 },
+      { name: '石炭系灰岩', top: 85, bottom: 100, color: 0xDDA0DD }
+    ];
+
+    function loadSampleData() {
+      boreholes = [];
+      // 模拟一个透镜状矿体的钻孔数据
+      // 钻孔分布在一个椭圆区域内，矿体中心厚、边缘薄
+      var configs = [
+        // [id, name, x, y, surfaceZ, totalDepth]
+        ['BH001', 'ZK-01', 100, 100, 55, 82],
+        ['BH002', 'ZK-02', 200, 100, 53, 95],
+        ['BH003', 'ZK-03', 300, 100, 50, 78],
+        ['BH004', 'ZK-04', 100, 200, 54, 105],
+        ['BH005', 'ZK-05', 200, 200, 50, 120], // 中心钻孔最深，矿体最厚
+        ['BH006', 'ZK-06', 300, 200, 48, 88],
+        ['BH007', 'ZK-07', 100, 300, 52, 72],
+        ['BH008', 'ZK-08', 200, 300, 49, 85],
+        ['BH009', 'ZK-09', 300, 300, 47, 68],
+        ['BH010', 'ZK-10', 150, 150, 54, 90],
+        ['BH011', 'ZK-11', 250, 150, 51, 98],
+        ['BH012', 'ZK-12', 150, 250, 52, 100],
+        ['BH013', 'ZK-13', 250, 250, 49, 108],
+        ['BH014', 'ZK-14', 200, 50, 56, 65],
+        ['BH015', 'ZK-15', 200, 350, 48, 60],
+        ['BH016', 'ZK-16', 50, 200, 56, 55],
+        ['BH017', 'ZK-17', 350, 200, 46, 52]
+      ];
+
+      // 矿体中心坐标和椭圆参数
+      var cx = 200, cy = 200;
+      var rx = 160, ry = 160; // 椭圆半径
+
+      configs.forEach(function(cfg) {
+        var layers = [];
+        var currentDepth = 0;
+        // 计算该钻孔到中心的距离比（0=中心, 1=边缘）
+        var dx = (cfg[2] - cx) / rx;
+        var dy = (cfg[3] - cy) / ry;
+        var distRatio = Math.sqrt(dx * dx + dy * dy);
+        // 矿体厚度衰减因子：中心1.0，边缘0.3
+        var thicknessFactor = Math.max(0.25, 1.0 - distRatio * 0.7);
+
+        for (var j = 0; j < LAYER_DEFS.length; j++) {
+          var def = LAYER_DEFS[j];
+          if (currentDepth >= cfg[5]) break;
+          // 顶底深度有自然波动，且受厚度因子影响
+          var jitter = (Math.random() * 2 - 1) * 1.5;
+          var topD = def.top + jitter;
+          var rawThickness = (def.bottom - def.top) * thicknessFactor;
+          var botD = Math.min(topD + Math.max(1, rawThickness + (Math.random() * 2 - 1)), cfg[5]);
+          if (botD <= topD) botD = topD + 1;
+          layers.push({
+            id: cfg[0] + '_' + def.name,
+            name: def.name,
+            topDepth: Math.max(currentDepth, topD),
+            bottomDepth: botD,
+            color: def.color
+          });
+          currentDepth = botD;
+        }
+        boreholes.push({
+          id: cfg[0], name: cfg[1],
+          x: cfg[2], y: cfg[3], z: cfg[4],
+          depth: cfg[5], dip: 0, azimuth: 0,
+          layers: layers
+        });
+      });
+
+      renderBoreholes();
+      updateStats();
+      plotBoreholesOnMap();
+
+      // Auto-link 3D model to map (Shanghai as example)
+      if (!gwModelLinked) {
+        linkModelToMap();
+        gwModelLinked = true;
+      }
+
+      showToast('示例数据加载成功！共 ' + boreholes.length + ' 个钻孔');
+      var infoPanel = document.getElementById('info-panel');
+      infoPanel.innerHTML =
+        '<span class="close-hint">&#10005;</span><strong>示例数据已加载</strong><br>' + boreholes.length + '个钻孔 | ' + (function() { var names = []; boreholes.forEach(function(bh) { bh.layers.forEach(function(l) { if (names.indexOf(l.name) < 0) names.push(l.name); }); }); return names.length; })() + '个地层<br>切换「全国地图」查看位置';
+      infoPanel.style.display = '';
+      infoPanel.classList.remove('fade-out');
+      // 2.5秒后自动消失
+      clearTimeout(infoPanel._hideTimer);
+      infoPanel._hideTimer = setTimeout(function() {
+        infoPanel.classList.add('fade-out');
+        setTimeout(function() { infoPanel.style.display = 'none'; }, 400);
+      }, 2500);
+    }
+
+    // ===== 3D Model -> Map Linking =====
+    function linkModelToMap() {
+      if (!map) initMap();
+      var shanghaiData = CHINA_REGIONS['上海市'].cities.find(function(c) { return c.name === '上海'; });
+      if (!shanghaiData) return;
+
+      var today = new Date().toISOString().split('T')[0];
+      var names = [];
+      boreholes.forEach(function(bh) {
+        bh.layers.forEach(function(l) {
+          if (names.indexOf(l.name) < 0) names.push(l.name);
+        });
+      });
+      var layerCount = names.length;
+
+      var record = {
+        id: workRecordIdCounter++,
+        city: '上海',
+        lat: shanghaiData.lat,
+        lng: shanghaiData.lng,
+        location: '上海（建模项目）',
+        type: 'model',
+        desc: '3D地质建模项目：' + boreholes.length + '个钻孔，' + layerCount + '个地层。覆盖面积约' +
+          Math.round((Math.max.apply(null, boreholes.map(function(b){return b.x;})) - Math.min.apply(null, boreholes.map(function(b){return b.x;}))) *
+          (Math.max.apply(null, boreholes.map(function(b){return b.y;})) - Math.min.apply(null, boreholes.map(function(b){return b.y;})))).toLocaleString() + 'm\u00B2。',
+        date: today
+      };
+      workRecords.push(record);
+
+      if (cityMarkers['上海']) {
+        cityMarkers['上海'].records.push(record);
+        updateCityMarker('上海');
+      }
+      updateWorkRecordList();
+    }
+
+    // ==================== Render Boreholes ====================
+    function renderBoreholes() {
+      boreholeGroup.clear();
+      collarMeshes = [];
+      if (!showBoreholes) return;
+      boreholes.forEach(function(bh) {
+        // 按岩性分段渲染3D柱体（Leapfrog风格）
+        var totalSegs = 60;
+        var segLen = bh.depth / totalSegs;
+        for (var i = 0; i < totalSegs; i++) {
+          var d1 = i * segLen, d2 = (i + 1) * segLen;
+          var z1 = bh.z - d1, z2 = bh.z - d2;
+          // 找到该段对应的岩性颜色
+          var midD = (d1 + d2) / 2;
+          var col = 0x888888;
+          for (var j = 0; j < bh.layers.length; j++) {
+            if (midD >= bh.layers[j].topDepth && midD <= bh.layers[j].bottomDepth) {
+              col = bh.layers[j].color; break;
+            }
+          }
+          // 用CylinderGeometry做3D柱体段
+          var cylGeo = new THREE.CylinderGeometry(1.2, 1.2, segLen, 6);
+          var cylMat = new THREE.MeshPhongMaterial({ color: col, shininess: 20 });
+          var cyl = new THREE.Mesh(cylGeo, cylMat);
+          cyl.position.set(bh.x, bh.y, (z1 + z2) / 2);
+          boreholeGroup.add(cyl);
+        }
+        // 细轨迹线
+        var tracePts = [];
+        for (var i = 0; i <= 20; i++) {
+          tracePts.push(new THREE.Vector3(bh.x, bh.y, bh.z - bh.depth * i / 20));
+        }
+        var traceGeo = new THREE.BufferGeometry().setFromPoints(tracePts);
+        boreholeGroup.add(new THREE.Line(traceGeo, new THREE.LineBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.3 })));
+        // 孔口红色标记球
+        var collarGeo = new THREE.SphereGeometry(3, 12, 12);
+        var collarMat = new THREE.MeshPhongMaterial({ color: 0xff3333, emissive: 0x661111 });
+        var collar = new THREE.Mesh(collarGeo, collarMat);
+        collar.position.set(bh.x, bh.y, bh.z + 65);
+        collar.userData = { boreholeId: bh.id };
+        boreholeGroup.add(collar);
+        collarMeshes.push(collar);
+        // 孔口标签（小白色环）
+        var ringGeo = new THREE.RingGeometry(4, 6, 16);
+        var ringMat = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
+        var ring = new THREE.Mesh(ringGeo, ringMat);
+        ring.position.set(bh.x, bh.y, bh.z + 60);
+        ring.rotation.x = -Math.PI / 2;
+        boreholeGroup.add(ring);
+      });
+    }
+
+    // ==================== Stratum Modeling (3DMine/Surpac风格) ====================
+    // 地层：一层层独立闭合体 | 矿体：单独的透镜体，可独立显示/隐藏
+    var oreBodyVisible = true;
+    var oreBodyMeshIndex = -1;
+
+    function toggleOreBody() {
+      oreBodyVisible = !oreBodyVisible;
+      if (oreBodyMeshIndex >= 0 && stratumGroup.children[oreBodyMeshIndex]) {
+        stratumGroup.children[oreBodyMeshIndex].visible = oreBodyVisible;
+      }
+      var btn = document.getElementById('btnOreBody');
+      btn.innerHTML = oreBodyVisible ? '&#10004; 隐藏矿体' : '&#10004; 显示矿体';
+    }
+
+    function buildStratumModel() {
+      if (boreholes.length === 0) { showToast('请先加载数据！'); return; }
+      try {
+      stratumGroup.clear();
+      stratumModels = [];
+      var method = document.getElementById('interpMethod').value;
+      var gridSize = 50;
+
+      // 收集所有地层名
+      var stratumNames = [], nameSet = {};
+      boreholes.forEach(function(bh) {
+        bh.layers.forEach(function(layer) {
+          if (!nameSet[layer.name]) { nameSet[layer.name] = true; stratumNames.push(layer.name); }
+        });
+      });
+
+      var cx = 200, cy = 200, rx = 180, ry = 180;
+
+      // ---- 第1部分：一层层独立地层（实心闭合体） ----
+      stratumNames.forEach(function(name) {
+        var topPoints = [], bottomPoints = [], stratumColor = 0x6B8E23;
+        boreholes.forEach(function(bh) {
+          bh.layers.forEach(function(layer) {
+            if (layer.name === name) {
+              topPoints.push({ x: bh.x, y: bh.y, z: bh.z - layer.topDepth });
+              bottomPoints.push({ x: bh.x, y: bh.y, z: bh.z - layer.bottomDepth });
+              stratumColor = layer.color;
+            }
+          });
+        });
+        if (topPoints.length < 3) return;
+
+        var allX = topPoints.map(function(p){return p.x;}).concat(bottomPoints.map(function(p){return p.x;}));
+        var allY = topPoints.map(function(p){return p.y;}).concat(bottomPoints.map(function(p){return p.y;}));
+        var minX = Math.min.apply(null, allX) - 30, maxX = Math.max.apply(null, allX) + 30;
+        var minY = Math.min.apply(null, allY) - 30, maxY = Math.max.apply(null, allY) + 30;
+        var dx = (maxX - minX) / (gridSize - 1), dy = (maxY - minY) / (gridSize - 1);
+
+        var topVerts = [], bottomVerts = [];
+        for (var i = 0; i < gridSize; i++) {
+          for (var j = 0; j < gridSize; j++) {
+            var px = minX + i * dx, py = minY + j * dy;
+            var ndx = (px - cx) / rx, ndy = (py - cy) / ry;
+            var dist2 = ndx * ndx + ndy * ndy;
+            var falloff = Math.exp(-dist2 * 2.0);
+            var topZ = interpolate(px, py, topPoints, method);
+            var botZ = interpolate(px, py, bottomPoints, method);
+            var midZ = (topZ + botZ) / 2;
+            var halfThick = Math.abs(topZ - botZ) / 2 * falloff;
+            var noise = Math.sin(px * 0.04) * Math.cos(py * 0.05) * 1.0;
+            topVerts.push(new THREE.Vector3(px, py, midZ + halfThick + noise));
+            bottomVerts.push(new THREE.Vector3(px, py, midZ - halfThick + noise * 0.5));
+          }
+        }
+
+        // 构建闭合体
+        var vertices = [], indices = [], vertCount = 0;
+        function addQuad(a, b, c, d, flip) {
+          if (flip) { indices.push(vertCount,vertCount+1,vertCount+2); indices.push(vertCount,vertCount+2,vertCount+3); }
+          else { indices.push(vertCount,vertCount+2,vertCount+1); indices.push(vertCount,vertCount+3,vertCount+2); }
+          vertCount += 4;
+        }
+        // 顶面
+        for (var i = 0; i < gridSize-1; i++) for (var j = 0; j < gridSize-1; j++) {
+          var idx = i*gridSize+j;
+          var a=topVerts[idx],b=topVerts[idx+1],c=topVerts[idx+gridSize+1],d=topVerts[idx+gridSize];
+          vertices.push(a.x,a.y,a.z,b.x,b.y,b.z,c.x,c.y,c.z,d.x,d.y,d.z);
+          addQuad(a,b,c,d,false);
+        }
+        // 底面
+        for (var i = 0; i < gridSize-1; i++) for (var j = 0; j < gridSize-1; j++) {
+          var idx = i*gridSize+j;
+          var a=bottomVerts[idx],b=bottomVerts[idx+1],c=bottomVerts[idx+gridSize+1],d=bottomVerts[idx+gridSize];
+          vertices.push(a.x,a.y,a.z,b.x,b.y,b.z,c.x,c.y,c.z,d.x,d.y,d.z);
+          addQuad(a,d,c,b,false);
+        }
+        // 四面侧壁
+        for (var i = 0; i < gridSize-1; i++) {
+          var idx=i*gridSize;
+          vertices.push(topVerts[idx].x,topVerts[idx].y,topVerts[idx].z,topVerts[idx+gridSize].x,topVerts[idx+gridSize].y,topVerts[idx+gridSize].z,bottomVerts[idx+gridSize].x,bottomVerts[idx+gridSize].y,bottomVerts[idx+gridSize].z,bottomVerts[idx].x,bottomVerts[idx].y,bottomVerts[idx].z);
+          addQuad(topVerts[idx],topVerts[idx+gridSize],bottomVerts[idx+gridSize],bottomVerts[idx],false);
+        }
+        for (var i = 0; i < gridSize-1; i++) {
+          var idx=i*gridSize+(gridSize-1);
+          vertices.push(topVerts[idx].x,topVerts[idx].y,topVerts[idx].z,bottomVerts[idx].x,bottomVerts[idx].y,bottomVerts[idx].z,bottomVerts[idx+gridSize].x,bottomVerts[idx+gridSize].y,bottomVerts[idx+gridSize].z,topVerts[idx+gridSize].x,topVerts[idx+gridSize].y,topVerts[idx+gridSize].z);
+          addQuad(topVerts[idx],bottomVerts[idx],bottomVerts[idx+gridSize],topVerts[idx+gridSize],false);
+        }
+        for (var j = 0; j < gridSize-1; j++) {
+          vertices.push(topVerts[j].x,topVerts[j].y,topVerts[j].z,bottomVerts[j].x,bottomVerts[j].y,bottomVerts[j].z,bottomVerts[j+1].x,bottomVerts[j+1].y,bottomVerts[j+1].z,topVerts[j+1].x,topVerts[j+1].y,topVerts[j+1].z);
+          addQuad(topVerts[j],bottomVerts[j],bottomVerts[j+1],topVerts[j+1],false);
+        }
+        for (var j = 0; j < gridSize-1; j++) {
+          var idx=(gridSize-1)*gridSize+j;
+          vertices.push(topVerts[idx].x,topVerts[idx].y,topVerts[idx].z,topVerts[idx+1].x,topVerts[idx+1].y,topVerts[idx+1].z,bottomVerts[idx+1].x,bottomVerts[idx+1].y,bottomVerts[idx+1].z,bottomVerts[idx].x,bottomVerts[idx].y,bottomVerts[idx].z);
+          addQuad(topVerts[idx],topVerts[idx+1],bottomVerts[idx+1],bottomVerts[idx],false);
+        }
+
+        var geo = new THREE.BufferGeometry();
+        geo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+        geo.setIndex(indices);
+        geo.computeVertexNormals();
+
+        var mat = new THREE.MeshPhongMaterial({
+          color: stratumColor, side: THREE.DoubleSide,
+          transparent: false, opacity: 1.0, shininess: 50,
+          specular: 0x777777
+        });
+        stratumGroup.add(new THREE.Mesh(geo, mat));
+        stratumModels.push({ name: name, color: stratumColor });
+      });
+
+      // ---- 第2部分：矿体（独立的透镜状体，可单独显示/隐藏） ----
+      var oreSize = 50;
+      var oreCx = 200, oreCy = 200, oreRx = 130, oreRy = 130, oreMaxThick = 40;
+      var oreTopVerts = [], oreBotVerts = [];
+      for (var i = 0; i < oreSize; i++) {
+        for (var j = 0; j < oreSize; j++) {
+          var u = (i/(oreSize-1))*2-1, v = (j/(oreSize-1))*2-1;
+          var r2 = u*u + v*v;
+          if (r2 > 1) { oreTopVerts.push(null); oreBotVerts.push(null); continue; }
+          var px = oreCx + u*oreRx, py = oreCy + v*oreRy;
+          var thick = oreMaxThick * Math.sqrt(Math.max(0, 1-r2));
+          var wobble = Math.sin(u*5)*Math.cos(v*4)*2 + Math.sin(u*8+v*6)*1;
+          wobble *= Math.sqrt(Math.max(0,1-r2));
+          var surfZ = 50 + Math.sin(px*0.02)*Math.cos(py*0.025)*3;
+          oreTopVerts.push(new THREE.Vector3(px, py, surfZ + thick*0.35 + wobble*0.3));
+          oreBotVerts.push(new THREE.Vector3(px, py, surfZ - thick*0.65 - wobble*0.2));
+        }
+      }
+      var oreVerts = [], oreIndices = [], oreVC = 0;
+      function oreQuad(a,b,c,d,flip) {
+        if (flip) { oreIndices.push(oreVC,oreVC+1,oreVC+2); oreIndices.push(oreVC,oreVC+2,oreVC+3); }
+        else { oreIndices.push(oreVC,oreVC+2,oreVC+1); oreIndices.push(oreVC,oreVC+3,oreVC+2); }
+        oreVC += 4;
+      }
+      // 顶面
+      for (var i = 0; i < oreSize-1; i++) for (var j = 0; j < oreSize-1; j++) {
+        var idx=i*oreSize+j;
+        var a=oreTopVerts[idx],b=oreTopVerts[idx+1],c=oreTopVerts[idx+oreSize+1],d=oreTopVerts[idx+oreSize];
+        if (!a||!b||!c||!d) continue;
+        oreVerts.push(a.x,a.y,a.z,b.x,b.y,b.z,c.x,c.y,c.z,d.x,d.y,d.z);
+        oreQuad(a,b,c,d,false);
+      }
+      // 底面
+      for (var i = 0; i < oreSize-1; i++) for (var j = 0; j < oreSize-1; j++) {
+        var idx=i*oreSize+j;
+        var a=oreBotVerts[idx],b=oreBotVerts[idx+1],c=oreBotVerts[idx+oreSize+1],d=oreBotVerts[idx+oreSize];
+        if (!a||!b||!c||!d) continue;
+        oreVerts.push(a.x,a.y,a.z,b.x,b.y,b.z,c.x,c.y,c.z,d.x,d.y,d.z);
+        oreQuad(a,d,c,b,false);
+      }
+      // 侧壁（只处理边缘处有值的顶点对）
+      for (var i = 0; i < oreSize-1; i++) {
+        var idx=i*oreSize;
+        var tA=oreTopVerts[idx],tB=oreTopVerts[idx+oreSize],bA=oreBotVerts[idx],bB=oreBotVerts[idx+oreSize];
+        if (tA&&tB&&bA&&bB) { oreVerts.push(tA.x,tA.y,tA.z,tB.x,tB.y,tB.z,bB.x,bB.y,bB.z,bA.x,bA.y,bA.z); oreQuad(tA,tB,bB,bA,false); }
+      }
+      for (var i = 0; i < oreSize-1; i++) {
+        var idx=i*oreSize+(oreSize-1);
+        var tA=oreTopVerts[idx],tB=oreTopVerts[idx+oreSize],bA=oreBotVerts[idx],bB=oreBotVerts[idx+oreSize];
+        if (tA&&tB&&bA&&bB) { oreVerts.push(tA.x,tA.y,tA.z,bA.x,bA.y,bA.z,bB.x,bB.y,bB.z,tB.x,tB.y,tB.z); oreQuad(tA,bA,bB,tB,false); }
+      }
+      for (var j = 0; j < oreSize-1; j++) {
+        var tA=oreTopVerts[j],tB=oreTopVerts[j+1],bA=oreBotVerts[j],bB=oreBotVerts[j+1];
+        if (tA&&tB&&bA&&bB) { oreVerts.push(tA.x,tA.y,tA.z,bA.x,bA.y,bA.z,bB.x,bB.y,bB.z,tB.x,tB.y,tB.z); oreQuad(tA,bA,bB,tB,false); }
+      }
+      for (var j = 0; j < oreSize-1; j++) {
+        var idx=(oreSize-1)*oreSize+j;
+        var tA=oreTopVerts[idx],tB=oreTopVerts[idx+1],bA=oreBotVerts[idx],bB=oreBotVerts[idx+1];
+        if (tA&&tB&&bA&&bB) { oreVerts.push(tA.x,tA.y,tA.z,tB.x,tB.y,tB.z,bB.x,bB.y,bB.z,bA.x,bA.y,bA.z); oreQuad(tA,tB,bB,bA,false); }
+      }
+
+      if (oreVerts.length > 0) {
+        var oreGeo = new THREE.BufferGeometry();
+        oreGeo.setAttribute('position', new THREE.Float32BufferAttribute(oreVerts, 3));
+        oreGeo.setIndex(oreIndices);
+        oreGeo.computeVertexNormals();
+        var oreMat = new THREE.MeshPhongMaterial({
+          color: 0xFFD700, side: THREE.DoubleSide,
+          transparent: false, opacity: 1.0, shininess: 70,
+          specular: 0xAAAAAA, emissive: 0xFFD700, emissiveIntensity: 0.05
+        });
+        var oreMesh = new THREE.Mesh(oreGeo, oreMat);
+        oreMesh.visible = oreBodyVisible;
+        stratumGroup.add(oreMesh);
+        oreBodyMeshIndex = stratumGroup.children.length - 1;
+        stratumModels.push({ name: '矿体(透镜状)', color: 0xFFD700 });
+      }
+
+      // 矿体边界投影
+      addOreBodyOutline(oreCx, oreCy, oreRx, oreRy);
+
+      updateStats();
+      showToast('3D模型生成完成！' + stratumNames.length + '层地层 + 矿体');
+      renderLayerList();
+      } catch (e) {
+        showToast('模型生成失败：' + e.message);
+        console.error('BuildStratumModel error:', e);
+      }
+    }
+
+    // 渲染地层控制列表
+    function renderLayerList() {
+      var container = document.getElementById('layerCheckboxes');
+      var wrapper = document.getElementById('layerList');
+      if (stratumModels.length === 0) { wrapper.style.display = 'none'; return; }
+      wrapper.style.display = 'block';
+      container.innerHTML = '';
+      stratumModels.forEach(function(m, i) {
+        var div = document.createElement('div');
+        div.style.cssText = 'display:flex;align-items:center;gap:6px;padding:3px 0;font-size:12px;';
+        var cb = document.createElement('input');
+        cb.type = 'checkbox'; cb.checked = true;
+        cb.id = 'layer_cb_' + i;
+        cb.style.cssText = 'accent-color:var(--primary);cursor:pointer;';
+        cb.onchange = (function(idx) {
+          return function() { toggleLayerVisibility(idx, this.checked); };
+        })(i);
+        var dot = document.createElement('span');
+        dot.style.cssText = 'display:inline-block;width:10px;height:10px;border-radius:50%;flex-shrink:0;';
+        dot.style.background = '#' + m.color.toString(16).padStart(6, '0');
+        var label = document.createElement('span');
+        label.style.color = '#ccc';
+        label.textContent = m.name;
+        div.appendChild(cb);
+        div.appendChild(dot);
+        div.appendChild(label);
+        container.appendChild(div);
+      });
+    }
+
+    // 切换地层可见性
+    function toggleLayerVisibility(idx, visible) {
+      if (!stratumGroup.children[idx]) return;
+      stratumGroup.children[idx].visible = visible;
+    }
+
+    // 根据深度比(0~1)返回地层颜色
+    function getLayerColor(ratio) {
+      var colors = [
+        {r:0.80, g:0.53, b:0.25}, // 0.0~0.14 第四系表土 棕色
+        {r:1.00, g:0.84, b:0.00}, // 0.15~0.29 第四系砂砾石 金黄
+        {r:1.00, g:0.55, b:0.26}, // 0.30~0.44 白垩系砂岩 橙色
+        {r:0.60, g:0.80, b:0.20}, // 0.45~0.59 侏罗系泥岩 黄绿
+        {r:0.53, g:0.81, b:0.92}, // 0.60~0.74 三叠系灰岩 天蓝
+        {r:0.49, g:0.99, b:0.00}, // 0.75~0.89 二叠系页岩 亮绿
+        {r:0.87, g:0.63, b:0.87}  // 0.90~1.0  石炭系灰岩 淡紫
+      ];
+      var idx = Math.min(colors.length - 1, Math.floor(ratio * colors.length));
+      return colors[idx];
+    }
+
+    // 矿体地面投影边界轮廓（3DMine风格：不规则边界+勘探线）
+    function addOreBodyOutline(cx, cy, rx, ry) {
+      // 不规则矿体边界（添加随机扰动）
+      var points = [];
+      var segments = 80;
+      for (var i = 0; i <= segments; i++) {
+        var angle = (i / segments) * Math.PI * 2;
+        var wobble = 1 + Math.sin(angle * 3) * 0.08 + Math.cos(angle * 5) * 0.05 + Math.sin(angle * 7) * 0.03;
+        var px = cx + rx * wobble * Math.cos(angle);
+        var py = cy + ry * wobble * Math.sin(angle);
+        points.push(new THREE.Vector3(px, py, 0.5));
+      }
+      var lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+      var lineMat = new THREE.LineBasicMaterial({ color: 0xff8f00, transparent: true, opacity: 0.7 });
+      stratumGroup.add(new THREE.Line(lineGeo, lineMat));
+
+      // 勘探线（虚线网格）
+      var expMat = new THREE.LineDashedMaterial({ color: 0x4488aa, dashSize: 8, gapSize: 4, transparent: true, opacity: 0.3 });
+      for (var i = 0; i < 5; i++) {
+        var offset = cx - rx + (i + 0.5) * (2 * rx / 5);
+        var g = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(offset, cy - ry - 20, 0.3), new THREE.Vector3(offset, cy + ry + 20, 0.3)
+        ]);
+        var l = new THREE.Line(g, expMat); l.computeLineDistances(); stratumGroup.add(l);
+      }
+      for (var i = 0; i < 5; i++) {
+        var offset = cy - ry + (i + 0.5) * (2 * ry / 5);
+        var g = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(cx - rx - 20, offset, 0.3), new THREE.Vector3(cx + rx + 20, offset, 0.3)
+        ]);
+        var l = new THREE.Line(g, expMat); l.computeLineDistances(); stratumGroup.add(l);
+      }
+
+      // 钻孔编号标注（3D文字替代：用小球+竖线标记）
+      boreholes.forEach(function(bh) {
+        var tagGeo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(bh.x, bh.y, bh.z + 8), new THREE.Vector3(bh.x, bh.y, bh.z + 4)
+        ]);
+        var tagMat = new THREE.LineBasicMaterial({ color: 0x88ccff, transparent: true, opacity: 0.5 });
+        stratumGroup.add(new THREE.Line(tagGeo, tagMat));
+      });
+    }
+
+    function interpolate(px, py, dataPoints, method) {
+      if (method === 'kriging') return interpolateIDW(px, py, dataPoints, 2.5);
+      if (method === 'rbf') return interpolateRBF(px, py, dataPoints);
+      return interpolateIDW(px, py, dataPoints);
+    }
+    function interpolateIDW(px, py, dataPoints, power) {
+      power = power || 2;
+      var wSum = 0, vSum = 0;
+      dataPoints.forEach(function(p) {
+        var d = Math.sqrt(Math.pow(px - p.x, 2) + Math.pow(py - p.y, 2));
+        if (d < 0.001) return p.z;
+        var w = 1 / Math.pow(d, power); wSum += w; vSum += w * p.z;
+      });
+      return wSum > 0 ? vSum / wSum : 0;
+    }
+    function interpolateRBF(px, py, dataPoints) {
+      var result = 0, wSum = 0;
+      dataPoints.forEach(function(p) {
+        var d2 = Math.pow(px - p.x, 2) + Math.pow(py - p.y, 2);
+        var w = 1 / Math.sqrt(d2 + 100); wSum += w; result += w * p.z;
+      });
+      return wSum > 0 ? result / wSum : 0;
+    }
+
+    function clearModels() { stratumGroup.clear(); stratumModels = []; updateStats(); document.getElementById('layerList').style.display='none'; showToast('地层模型已清除'); }
+
+    // ==================== Section Analysis ====================
+    function toggleSectionPanel() {
+      document.getElementById('sectionPanel').classList.toggle('active');
+      document.getElementById('reservePanel').classList.remove('active');
+    }
+    function generateSection() {
+      generateSectionEnhanced();
+    }
+
+    // ==================== Reserve Calculation ====================
+    function calculateReserve() {
+      if (boreholes.length === 0) { showToast('请先加载数据！'); return; }
+      try {
+      var tbody = document.querySelector('#reserveTable tbody');
+      tbody.innerHTML = '';
+      var bounds = getBounds();
+      var area = (bounds.maxX - bounds.minX) * (bounds.maxY - bounds.minY);
+      LAYER_DEFS.forEach(function(def) {
+        var t = [];
+        boreholes.forEach(function(bh) { bh.layers.forEach(function(l) { if(l.name===def.name) t.push(l.bottomDepth-l.topDepth); }); });
+        if(t.length>0) {
+          var avg = t.reduce(function(a,b){return a+b;},0)/t.length;
+          var row = document.createElement('tr');
+          row.innerHTML = '<td style="color:#' + def.color.toString(16).padStart(6,'0') + '">' + def.name + '</td><td>' + Math.round(area).toLocaleString() + '</td><td>' + Math.round(area*avg).toLocaleString() + '</td><td>' + avg.toFixed(1) + '</td>';
+          tbody.appendChild(row);
+        }
+      });
+      document.getElementById('reservePanel').classList.add('active');
+      document.getElementById('sectionPanel').classList.remove('active');
+      } catch (e) {
+        showToast('储量估算失败：' + e.message);
+        console.error('CalculateReserve error:', e);
+      }
+    }
+    function closeReservePanel() { document.getElementById('reservePanel').classList.remove('active'); }
+
+    // ==================== CSV Export ====================
+    function exportCSV() {
+      if (boreholes.length === 0) { showToast('请先加载数据！'); return; }
+      try {
+        var header = '钻孔ID,名称,X,Y,Z,深度,倾角,方位角';
+        var rows = boreholes.map(function(bh) {
+          return [bh.id, bh.name, bh.x, bh.y, bh.z, bh.depth, bh.dip, bh.azimuth].join(',');
+        });
+        var csv = header + '\n' + rows.join('\n');
+        var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        var url = URL.createObjectURL(blob);
+        var link = document.createElement('a');
+        link.href = url;
+        link.download = 'GeoModel3D_钻孔数据_' + new Date().toISOString().slice(0,10) + '.csv';
+        link.click();
+        URL.revokeObjectURL(url);
+        showToast('CSV 导出成功！共 ' + boreholes.length + ' 个钻孔');
+      } catch (e) {
+        showToast('导出失败：' + e.message);
+        console.error('CSV export error:', e);
+      }
+    }
+
+    // ==================== GLTF Model Export ====================
+    async function exportModelGLTF() {
+      if (stratumGroup.children.length === 0) { showToast('请先生成模型！'); return; }
+      try {
+        showToast('正在导出模型...');
+        var { GLTFExporter } = await import('https://unpkg.com/three@0.160.0/examples/jsm/exporters/GLTFExporter.js');
+        var exporter = new GLTFExporter();
+        exporter.parse(stratumGroup, function(result) {
+          var blob;
+          if (result instanceof ArrayBuffer) {
+            blob = new Blob([result], { type: 'application/octet-stream' });
+          } else {
+            var json = JSON.stringify(result);
+            blob = new Blob([json], { type: 'model/gltf+json' });
+          }
+          var url = URL.createObjectURL(blob);
+          var link = document.createElement('a');
+          link.href = url;
+          link.download = 'GeoModel3D_模型_' + new Date().toISOString().slice(0,10) + '.gltf';
+          link.click();
+          URL.revokeObjectURL(url);
+          showToast('GLTF 模型导出成功！');
+        }, function(err) {
+          showToast('GLTF 导出失败：' + err);
+        });
+      } catch (e) {
+        showToast('导出失败：' + e.message + '（请检查网络连接）');
+        console.error('GLTF export error:', e);
+      }
+    }
+
+    // ==================== Enhanced Section ====================
+    function generateSectionEnhanced() {
+      if (boreholes.length === 0) { showToast('请先加载数据！'); return; }
+      try {
+        sectionGroup.clear(); showSection = true;
+        document.getElementById('label-section').querySelector('input').checked = true;
+        var sx = parseFloat(document.getElementById('secStartX').value);
+        var sy = parseFloat(document.getElementById('secStartY').value);
+        var ex = parseFloat(document.getElementById('secEndX').value);
+        var ey = parseFloat(document.getElementById('secEndY').value);
+        var dx = ex - sx, dy = ey - sy, len = Math.sqrt(dx*dx+dy*dy);
+        if (len < 1) { showToast('剖面线太短，请增大起点和终点距离'); return; }
+
+        // 剖面线 + 切割面
+        var lineGeo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(sx, sy, 85), new THREE.Vector3(ex, ey, 85)
+        ]);
+        sectionGroup.add(new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: 0xff8f00, linewidth: 2 })));
+
+        // 半透明切割面
+        var planeGeo = new THREE.PlaneGeometry(len, 60);
+        var plane = new THREE.Mesh(planeGeo, new THREE.MeshBasicMaterial({
+          color: 0xff8f00, side: THREE.DoubleSide, transparent: true, opacity: 0.12, depthWrite: false
+        }));
+        plane.position.set((sx+ex)/2, (sy+ey)/2, 40);
+        plane.rotation.z = Math.atan2(dy, dx);
+        plane.renderOrder = 1;
+        sectionGroup.add(plane);
+
+        // 端点标记球
+        var m1 = new THREE.Mesh(new THREE.SphereGeometry(4, 16, 16), new THREE.MeshPhongMaterial({color:0xff8f00, emissive:0xff8f00, emissiveIntensity:0.5}));
+        m1.position.set(sx, sy, 85);
+        sectionGroup.add(m1);
+        var m2 = new THREE.Mesh(new THREE.SphereGeometry(4, 16, 16), new THREE.MeshPhongMaterial({color:0xff8f00, emissive:0xff8f00, emissiveIntensity:0.5}));
+        m2.position.set(ex, ey, 85);
+        sectionGroup.add(m2);
+
+        // 箭头指示方向
+        var midX = (sx+ex)/2, midY = (sy+ey)/2;
+        var angle = Math.atan2(dy, dx);
+        var arrowLen = 15;
+        var arrowGeo = new THREE.ConeGeometry(4, arrowLen, 8, 8);
+        var arrow = new THREE.Mesh(arrowGeo, new THREE.MeshPhongMaterial({color:0xff8f00, emissive:0xff8f00, emissiveIntensity:0.3}));
+        arrow.position.set(midX + Math.cos(angle)*20, midY + Math.sin(angle)*20, 85);
+        arrow.rotation.z = -Math.PI/2;
+        arrow.rotation.y = -angle;
+        sectionGroup.add(arrow);
+
+        // 计算剖面穿过的钻孔
+        var nearbyBHs = [];
+        var ux = -dy/len, uy = dx/len;
+        boreholes.forEach(function(bh) {
+          var t = ((bh.x - sx)*dx + (bh.y - sy)*dy) / (len*len);
+          if (t >= -0.05 && t <= 1.05) {
+            var projDist = Math.abs((bh.x - sx)*ux + (bh.y - sy)*uy);
+            if (projDist < 50) {
+              nearbyBHs.push({ bh: bh, t: t, dist: projDist });
+            }
+          }
+        });
+        nearbyBHs.sort(function(a,b) { return a.t - b.t; });
+
+        showToast('剖面已生成！穿过 ' + nearbyBHs.length + ' 个钻孔，橙色线+半透明面');
+      } catch (e) {
+        showToast('剖面生成失败：' + e.message);
+        console.error('Section error:', e);
+      }
+    }
+
+    // ==================== File Upload ====================
+    function handleFileUpload(event) {
+      var file = event.target.files[0];
+      if (!file) return;
+      var ext = file.name.split('.').pop().toLowerCase();
+      if (ext !== 'csv' && ext !== 'txt') {
+        showToast('仅支持 CSV/TXT 格式文件');
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          parseCSV(e.target.result);
+        } catch (err) {
+          showToast('文件解析失败：' + err.message);
+        }
+      };
+      reader.onerror = function() {
+        showToast('文件读取失败，请重试');
+      };
+      reader.readAsText(file, 'UTF-8');
+    }
+    function parseCSV(text) {
+      if (!text || text.trim().length === 0) {
+        showToast('文件为空，请检查文件内容');
+        return;
+      }
+      var lines = text.trim().split('\n');
+      boreholes = [];
+      var skippedLines = 0;
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i].trim();
+        if (!line || line.indexOf('#') === 0 || line.indexOf('钻孔ID') === 0) continue;
+        var parts = line.split(',');
+        if (parts.length < 6) { skippedLines++; continue; }
+        var x = parseFloat(parts[2]), y = parseFloat(parts[3]), z = parseFloat(parts[4]), depth = parseFloat(parts[5]);
+        if (isNaN(x) || isNaN(y) || isNaN(z) || isNaN(depth)) { skippedLines++; continue; }
+        boreholes.push({
+          id: parts[0].trim(), name: (parts[1] || '').trim() || parts[0].trim(),
+          x: x, y: y, z: z, depth: depth,
+          dip: parseFloat(parts[6]) || 0, azimuth: parseFloat(parts[7]) || 0,
+          layers: generateLayers(depth)
+        });
+      }
+      if (boreholes.length === 0) {
+        showToast('未识别到有效钻孔数据，请检查 CSV 格式（需包含：钻孔ID,名称,X,Y,Z,深度）');
+        return;
+      }
+      renderBoreholes(); updateStats(); plotBoreholesOnMap();
+
+      // Auto-link to map
+      if (!gwModelLinked) {
+        linkModelToMap();
+        gwModelLinked = true;
+      }
+
+      var msg = 'CSV 导入成功！共 ' + boreholes.length + ' 个钻孔';
+      if (skippedLines > 0) msg += '（跳过 ' + skippedLines + ' 行无效数据）';
+      showToast(msg);
+    }
+    function generateLayers(depth) {
+      var layers = []; var current = 0;
+      for (var j = 0; j < LAYER_DEFS.length; j++) {
+        var def = LAYER_DEFS[j];
+        if (current >= depth) break;
+        var bot = Math.min(def.bottom + (Math.random()*2-1), depth);
+        layers.push({ id: 'L_' + def.name, name: def.name, topDepth: Math.max(current, def.top), bottomDepth: bot, color: def.color });
+        current = bot;
+      }
+      return layers;
+    }
+
+    // ==================== UI Helpers ====================
+    function toggleLayer(name) {
+      if (name === 'boreholes') { showBoreholes = !showBoreholes; boreholeGroup.visible = showBoreholes; }
+      else if (name === 'stratum') { showStratum = !showStratum; stratumGroup.visible = showStratum; }
+      else if (name === 'grid') { showGrid = !showGrid; gridGroup.visible = showGrid; }
+      else if (name === 'section') { showSection = !showSection; sectionGroup.visible = showSection; }
+      document.getElementById('label-' + name).classList.toggle('active');
+    }
+    function updateStats() {
+      document.getElementById('stat-boreholes').textContent = boreholes.length;
+      var layerCount = {};
+      boreholes.forEach(function(bh) { bh.layers.forEach(function(l) { layerCount[l.name] = true; }); });
+      document.getElementById('stat-layers').textContent = Object.keys(layerCount).length;
+      if (boreholes.length > 0) {
+        var bounds = getBounds();
+        var area = (bounds.maxX - bounds.minX) * (bounds.maxY - bounds.minY);
+        document.getElementById('stat-area').textContent = Math.round(area).toLocaleString();
+        var totalVol = 0;
+        LAYER_DEFS.forEach(function(def) {
+          var t = [];
+          boreholes.forEach(function(bh) { bh.layers.forEach(function(l) { if(l.name===def.name) t.push(l.bottomDepth-l.topDepth); }); });
+          if(t.length>0) totalVol += area * t.reduce(function(a,b){return a+b;},0) / t.length;
+        });
+        document.getElementById('stat-volume').textContent = Math.round(totalVol).toLocaleString();
+      }
+    }
+    function getBounds() {
+      if (boreholes.length === 0) return { minX: 0, maxX: 400, minY: 0, maxY: 400 };
+      return {
+        minX: Math.min.apply(null, boreholes.map(function(b){return b.x;})),
+        maxX: Math.max.apply(null, boreholes.map(function(b){return b.x;})),
+        minY: Math.min.apply(null, boreholes.map(function(b){return b.y;})),
+        maxY: Math.max.apply(null, boreholes.map(function(b){return b.y;}))
+      };
+    }
+    function showToast(msg) {
+      var t = document.getElementById('toast');
+      if (!t) {
+        t = document.createElement('div');
+        t.id = 'toast';
+        t.className = 'toast';
+        document.body.appendChild(t);
+      }
+      t.textContent = msg; t.classList.add('show');
+      setTimeout(function(){t.classList.remove('show');}, 3000);
+    }
+
+    function hideInfoPanel() {
+      var panel = document.getElementById('info-panel');
+      if (panel) {
+        clearTimeout(panel._hideTimer);
+        panel.classList.add('fade-out');
+        setTimeout(function() { panel.style.display = 'none'; }, 400);
+      }
+    }
+
+    // ========================================================================
+    // ==================== SIDEBAR TAB SWITCHING ====================
+    // ========================================================================
+    function switchSidebarTab(tab) {
+      currentSidebarTab = tab;
+
+      // Update tab buttons
+      document.querySelectorAll('.sidebar-tab').forEach(function(el) { el.classList.remove('active'); });
+      document.getElementById('stab-' + tab).classList.add('active');
+
+      // Update tab content
+      document.querySelectorAll('.tab-content').forEach(function(el) { el.classList.remove('active'); });
+      document.getElementById('tab-' + tab).classList.add('active');
+
+      // 移动端tab同步
+      document.querySelectorAll('.mobile-tab').forEach(function(el) { el.classList.remove('active'); });
+      var mt = document.getElementById('mtab-' + tab);
+      if (mt) mt.classList.add('active');
+
+      // Auto-switch view when appropriate
+      if (tab === 'map' && currentView !== 'map') {
+        switchView('map');
+      } else if (tab === 'modeling' && currentView !== '3d') {
+        switchView('3d');
+      }
+
+      // 移动端：切换后自动关闭侧栏
+      if (window.innerWidth <= 768) {
+        closeMobileSidebar();
+      }
+    }
+
+    // 移动端侧栏开关
+    function toggleMobileSidebar() {
+      var sb = document.querySelector('.sidebar');
+      var ov = document.getElementById('mobileOverlay');
+      sb.classList.toggle('open');
+      ov.classList.toggle('active');
+    }
+    function closeMobileSidebar() {
+      var sb = document.querySelector('.sidebar');
+      var ov = document.getElementById('mobileOverlay');
+      sb.classList.remove('open');
+      ov.classList.remove('active');
+    }
+
+    // ========================================================================
+    // ==================== CHINA MAP + CITY MARKERS ====================
+    // ========================================================================
+
+    // GeoJSON data loaded flag
+    let chinaGeoLoaded = false;
+
+    function initMap() {
+      if (map) return;
+      map = L.map('map-container', {
+        center: [35.86, 104.19],
+        zoom: 5,
+        zoomControl: true,
+        attributionControl: true
+      });
+
+      // ===== 多源瓦片：自动切换，确保地图能加载 =====
+      var tileSources = [
+        { url: 'https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}.png', opt: { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> | <a href="https://wikimediafoundation.org/">Wikimedia</a>' } },
+        { url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', opt: { subdomains: ['a','b','c'], maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' } },
+        { url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', opt: { subdomains: ['a','b','c','d'], maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> | <a href="https://carto.com/">CARTO</a>' } }
+      ];
+
+      var tileIdx = 0;
+      var tileLayer = null;
+      var tileLoaded = false;
+      var tileTimeout = null;
+
+      function tryTile() {
+        if (tileIdx >= tileSources.length) {
+          console.warn('[Map] 所有瓦片源均失败，将使用默认空地图');
+          return;
+        }
+        if (tileLayer) { map.removeLayer(tileLayer); }
+        if (tileTimeout) { clearTimeout(tileTimeout); }
+        tileLoaded = false;
+
+        var src = tileSources[tileIdx];
+        console.log('[Map] 尝试瓦片源 #' + (tileIdx + 1) + ':', src.url.substring(0, 50) + '...');
+        tileLayer = L.tileLayer(src.url, src.opt).addTo(map);
+
+        tileLayer.on('tileload', function() {
+          if (!tileLoaded) {
+            tileLoaded = true;
+            console.log('[Map] 瓦片源 #' + (tileIdx + 1) + ' 加载成功!');
+            if (tileTimeout) clearTimeout(tileTimeout);
+          }
+        });
+
+        // 5秒后如果还没加载成功，换下一个源
+        tileTimeout = setTimeout(function() {
+          if (!tileLoaded) {
+            console.warn('[Map] 瓦片源 #' + (tileIdx + 1) + ' 超时，切换下一个');
+            tileIdx++;
+            tryTile();
+          }
+        }, 5000);
+        tileIdx++;
+      }
+      tryTile();
+
+      // 比例尺控件
+      L.control.scale({
+        imperial: false,
+        metric: true,
+        position: 'bottomleft'
+      }).addTo(map);
+
+      // ===== 加载中国真实GeoJSON边界 =====
+      loadChinaGeoJSON();
+
+      // 遍历所有省份的城市，添加地图标记（已关闭，仅通过工作记录标记城市）
+      // Object.keys(CHINA_REGIONS).forEach(function(province) {
+      //   CHINA_REGIONS[province].cities.forEach(function(city) {
+      //     addCityMarkerToMap({ name: city.name, lat: city.lat, lng: city.lng, province: province });
+      //   });
+      // });
+
+      // ===== 地图点击空白区域 → 添加自定义工作记录 =====
+      map.on('click', function(e) {
+        openCustomPointForm(e.latlng.lat, e.latlng.lng);
+      });
+
+      loadSampleWorkRecords();
+      updateWorkRecordList();
+      if (boreholes.length > 0) plotBoreholesOnMap();
+
+      setTimeout(function() { map.invalidateSize(); }, 200);
+    }
+
+    // 加载真实中国GeoJSON数据（含省份边界）
+    function loadChinaGeoJSON() {
+      // 使用阿里云DataV的公开GeoJSON服务（免费，无需key），8秒超时后降级
+      var controller = new AbortController();
+      var timeoutId = setTimeout(function() { controller.abort(); }, 8000);
+      fetch('https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json', { signal: controller.signal })
+        .then(function(res) { clearTimeout(timeoutId); return res.json(); })
+        .then(function(data) {
+          if (data && data.features) {
+            chinaGeoLoaded = true;
+            // 省份填充层
+            L.geoJSON(data, {
+              style: function(feature) {
+                return {
+                  fillColor: 'rgba(22, 42, 48, 0.35)',
+                  fillOpacity: 0.35,
+                  color: 'rgba(45, 212, 191, 0.3)',
+                  weight: 1,
+                  dashArray: '',
+                  className: 'province-fill'
+                };
+              },
+              onEachFeature: function(feature, layer) {
+                layer.on('mouseover', function(e) {
+                  layer.setStyle({
+                    fillOpacity: 0.55,
+                    color: 'rgba(45, 212, 191, 0.7)',
+                    weight: 1.5
+                  });
+                  if (feature.properties && feature.properties.name) {
+                    layer.bindTooltip(feature.properties.name, {
+                      sticky: true,
+                      className: 'province-tooltip',
+                      direction: 'top',
+                      offset: [0, -10]
+                    }).openTooltip();
+                  }
+                });
+                layer.on('mouseout', function(e) {
+                  layer.setStyle({
+                    fillOpacity: 0.35,
+                    color: 'rgba(45, 212, 191, 0.3)',
+                    weight: 1
+                  });
+                  layer.closeTooltip();
+                });
+              }
+            }).addTo(map);
+
+            // 国界线高亮层（更粗更亮）
+            L.geoJSON(data, {
+              style: {
+                fillColor: 'transparent',
+                fillOpacity: 0,
+                color: '#2dd4bf',
+                weight: 2.5,
+                opacity: 0.8,
+                dashArray: ''
+              }
+            }).addTo(map);
+          }
+        })
+        .catch(function(err) {
+          console.warn('GeoJSON加载失败，使用简化边界:', err);
+          // 降级：使用简化边界
+          addChinaGeoJSONFallback();
+        });
+    }
+
+    // 降级方案：简化边界（网络不可用时）
+    function addChinaGeoJSONFallback() {
+      var chinaOutline = [
+        [73.5,39.5],[75,40.5],[76,41],[78,42],[79,43],[80,44],[81,45],[82,46],[83,47],
+        [85,47],[87,47],[88,48],[89,49],[91,49],[93,48],[95,47],[97,47],[99,47],
+        [101,48],[103,48],[105,49],[107,49],[109,49],[111,49],[112,48],[114,48],
+        [116,48],[118,48],[120,49],[122,49],[124,49],[126,48],[128,48],[130,48],
+        [131,47],[132,47],[134,48],[135,48],[134,47],[133,46],[131,45],[131,44],
+        [130,43],[129,42],[128,41],[127,40],[126,39],[125,39],[124,40],[123,40],
+        [122,40],[121,39],[122,38],[121,37],[121,36],[120,35],[120,34],[121,33],
+        [122,32],[121,31],[122,30],[121,29],[120,28],[119,27],[118,26],[117,25],
+        [116,24],[115,23],[114,22],[113,22],[112,21],[111,21],[110,20],[109,20],
+        [108,21],[107,22],[106,22],[105,23],[104,23],[103,23],[102,22],[101,22],
+        [100,22],[99,23],[98,24],[97,24],[98,25],[97,26],[98,27],[98,28],[97,28],
+        [96,29],[95,29],[94,29],[93,29],[92,28],[91,28],[90,28],[89,28],[88,28],
+        [87,28],[86,28],[85,28],[84,27],[83,27],[82,28],[81,28],[80,29],[79,30],
+        [79,31],[78,32],[78,33],[77,34],[76,35],[76,36],[75,36],[74,37],[74,38],
+        [73.5,39.5]
+      ];
+      L.polygon(chinaOutline, {
+        color: '#2dd4bf', weight: 2.5, opacity: 0.9,
+        fillColor: '#162a30', fillOpacity: 0.5, dashArray: '8,4'
+      }).addTo(map);
+
+      var hainan = [[108.6,19.0],[109.5,18.2],[110.5,18.5],[111.0,19.5],[110.5,20.0],[109.5,20.0],[108.6,19.0]];
+      L.polyline(hainan, { color: '#26a69a', weight: 1.5, opacity: 0.6, dashArray: '5,3' }).addTo(map);
+
+      var taiwan = [[120.2,22.0],[121.0,22.5],[121.8,24.5],[121.5,25.2],[120.8,25.3],[120.2,24.0],[120.0,23.0],[120.2,22.0]];
+      L.polyline(taiwan, { color: '#26a69a', weight: 1.5, opacity: 0.6, dashArray: '5,3' }).addTo(map);
+
+      var southSeaLines = [[[109.5,18],[112,16],[114,14],[115,12],[116,10],[114,8],[112,6],[110,5],[108,6],[106,8],[105,10],[106,12],[107,14],[108,16],[109.5,18]]];
+      southSeaLines.forEach(function(coords) {
+        L.polyline(coords, { color: '#26a69a', weight: 1, opacity: 0.4, dashArray: '4,4' }).addTo(map);
+      });
+    }
+
+    // ===== Create City Marker (Gaode-style Pin) =====
+    function createCityIcon(cityName, hasWork) {
+      var pinClass = hasWork ? 'city-pin-wrap active' : 'city-pin-wrap';
+      var iconInner = hasWork ? '\u2605' : '\u25CF';
+      return L.divIcon({
+        className: '',
+        html: '<div class="' + pinClass + '">' +
+          '<div class="city-pin-body">' +
+            '<span class="city-pin-icon">' + iconInner + '</span>' +
+          '</div>' +
+          '<div class="city-pin-shadow"></div>' +
+          '<div class="city-pin-label">' + cityName + '</div>' +
+        '</div>',
+        iconSize: [40, 76],
+        iconAnchor: [20, 72]
+      });
+    }
+
+    function addCityMarkerToMap(city) {
+      var icon = createCityIcon(city.name, false);
+      var marker = L.marker([city.lat, city.lng], { icon: icon }).addTo(map);
+
+      marker.on('click', function(e) {
+        L.DomEvent.stopPropagation(e);
+        var entry = cityMarkers[city.name];
+        if (entry && entry.records.length > 0) {
+          marker.openPopup();
+        } else {
+          openCityForm(city);
+        }
+      });
+
+      cityMarkers[city.name] = {
+        marker: marker,
+        records: [],
+        city: city
+      };
+    }
+
+    function updateCityMarker(cityName) {
+      var entry = cityMarkers[cityName];
+      if (!entry) return;
+      var hasWork = entry.records.length > 0;
+      var newIcon = createCityIcon(cityName, hasWork);
+      entry.marker.setIcon(newIcon);
+
+      if (hasWork) {
+        var city = entry.city;
+        var html = '<div style="min-width:240px;max-height:340px;overflow-y:auto;">' +
+          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(45,212,191,0.2);">' +
+            '<div style="width:28px;height:28px;background:linear-gradient(135deg,#2dd4bf,#0d9488);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;">&#128205;</div>' +
+            '<div>' +
+              '<strong style="color:#2dd4bf;font-size:15px;">' + cityName + '</strong>' +
+              '<div style="font-size:10px;color:#78909c;">' + city.province + ' | ' + entry.records.length + ' 条记录</div>' +
+            '</div>' +
+          '</div>';
+
+        entry.records.forEach(function(r) {
+          var typeLabel = '';
+          if (r.type === 'model') typeLabel = '<span style="color:#26a69a;font-size:10px;background:rgba(38,166,154,0.15);padding:2px 8px;border-radius:10px;">建模项目</span>';
+          else if (r.type === 'fieldrecord') typeLabel = '<span style="color:#52B788;font-size:10px;background:rgba(82,183,136,0.15);padding:2px 8px;border-radius:10px;">野外记录</span>';
+          else {
+            var ti = WORK_TYPES[r.type] || WORK_TYPES.other;
+            typeLabel = '<span style="color:' + getWorkTypeColor(r.type) + ';font-size:10px;background:' + getWorkTypeColor(r.type) + '18;padding:2px 8px;border-radius:10px;">' + ti.label + '</span>';
+          }
+
+          html += '<div style="padding:8px 0;border-bottom:1px solid rgba(42,74,82,0.5);">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+              '<span style="font-size:11px;color:#ff8f00;font-weight:600;">' + r.date + '</span>' +
+              typeLabel +
+            '</div>' +
+            '<div style="font-size:11px;color:#b0bec5;line-height:1.5;">' + r.desc + '</div>' +
+          '</div>';
+        });
+
+        html += '<div style="margin-top:10px;text-align:center;">' +
+          '<button onclick="openCityForm(cityMarkers[\'' + cityName + '\'].city)" style="background:linear-gradient(135deg,#2dd4bf,#0d9488);color:#fff;border:none;border-radius:8px;padding:7px 20px;font-size:12px;cursor:pointer;font-weight:600;box-shadow:0 2px 10px rgba(45,212,191,0.3);transition:all 0.2s;">&#10010; 添加记录</button>' +
+          '</div></div>';
+        entry.marker.bindPopup(html);
+      }
+    }
+
+    function getWorkTypeColor(type) {
+      var colors = { drill:'#26a69a', sample:'#ff8f00', observation:'#66bb6a', measure:'#42a5f5', safety:'#ef5350', other:'#26a69a' };
+      return colors[type] || '#26a69a';
+    }
+
+    // ===== Open Form for City =====
+    function openCityForm(city) {
+      pendingCity = city;
+      document.getElementById('mfCoords').value = city.name + ' (' + city.lat.toFixed(4) + ', ' + city.lng.toFixed(4) + ')';
+      document.getElementById('mfDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('mfLocation').value = city.name;
+      document.getElementById('mfDesc').value = '';
+      document.getElementById('markerFormOverlay').classList.add('active');
+    }
+
+    // ===== Open Form for Custom Point (click anywhere on map) =====
+    function openCustomPointForm(lat, lng) {
+      pendingCity = null;
+      pendingLatLng = { lat: lat, lng: lng };
+      document.getElementById('mfCoords').value = lat.toFixed(5) + ', ' + lng.toFixed(5);
+      document.getElementById('mfDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('mfLocation').value = '';
+      document.getElementById('mfDesc').value = '';
+      document.getElementById('markerFormOverlay').classList.add('active');
+    }
+
+    // ===== Create Custom Point Marker Icon =====
+    function createCustomPointIcon(hasWork) {
+      var color = hasWork ? '#f59e0b' : '#42a5f5';
+      var glow = hasWork ? 'rgba(245,158,11,0.5)' : 'rgba(66,165,245,0.4)';
+      var inner = hasWork ? '&#9733;' : '&#9679;';
+      return L.divIcon({
+        className: '',
+        html: '<div style="display:flex;flex-direction:column;align-items:center;cursor:pointer;filter:drop-shadow(0 3px 6px rgba(0,0,0,0.4));">' +
+          '<div style="width:28px;height:28px;background:linear-gradient(135deg,' + color + ',' + (hasWork ? '#d97706' : '#1565c0') + ');border-radius:50%;border:2.5px solid rgba(255,255,255,0.85);box-shadow:0 3px 14px ' + glow + ',inset 0 1px 2px rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;">' +
+            '<span style="color:#fff;font-size:11px;font-weight:700;">' + inner + '</span>' +
+          '</div>' +
+          '<div style="width:14px;height:3px;background:rgba(0,0,0,0.2);border-radius:50%;filter:blur(2px);margin-top:-1px;"></div>' +
+        '</div>',
+        iconSize: [28, 34],
+        iconAnchor: [14, 28]
+      });
+    }
+
+    // ===== Add Custom Marker to Map =====
+    function addCustomMarker(lat, lng) {
+      var id = customMarkerIdCounter++;
+      var icon = createCustomPointIcon(false);
+      var marker = L.marker([lat, lng], { icon: icon }).addTo(map);
+
+      marker.on('click', function(e) {
+        L.DomEvent.stopPropagation(e);
+        var cm = customMarkers.find(function(m) { return m.id === id; });
+        if (cm && cm.records.length > 0) {
+          marker.openPopup();
+        } else {
+          openCustomPointForm(lat, lng);
+        }
+      });
+
+      var entry = { marker: marker, records: [], id: id, lat: lat, lng: lng };
+      customMarkers.push(entry);
+      return entry;
+    }
+
+    // ===== Update Custom Marker Popup =====
+    function updateCustomMarker(entry) {
+      var hasWork = entry.records.length > 0;
+      entry.marker.setIcon(createCustomPointIcon(hasWork));
+
+      if (hasWork) {
+        var html = '<div style="min-width:240px;max-height:340px;overflow-y:auto;">' +
+          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid rgba(45,212,191,0.2);">' +
+            '<div style="width:28px;height:28px;background:linear-gradient(135deg,#42a5f5,#1565c0);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;">&#128205;</div>' +
+            '<div>' +
+              '<strong style="color:#42a5f5;font-size:14px;">自定义点位</strong>' +
+              '<div style="font-size:10px;color:#78909c;">' + entry.lat.toFixed(4) + ', ' + entry.lng.toFixed(4) + ' | ' + entry.records.length + ' 条记录</div>' +
+            '</div>' +
+          '</div>';
+
+        entry.records.forEach(function(r) {
+          var typeLabel = '';
+          var ti = WORK_TYPES[r.type] || WORK_TYPES.other;
+          typeLabel = '<span style="color:' + getWorkTypeColor(r.type) + ';font-size:10px;background:' + getWorkTypeColor(r.type) + '18;padding:2px 8px;border-radius:10px;">' + ti.label + '</span>';
+
+          html += '<div style="padding:8px 0;border-bottom:1px solid rgba(42,74,82,0.5);">' +
+            '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+              '<span style="font-size:11px;color:#ff8f00;font-weight:600;">' + r.date + '</span>' +
+              typeLabel +
+            '</div>' +
+            '<div style="font-size:11px;color:#b0bec5;line-height:1.5;">' + r.desc + '</div>' +
+          '</div>';
+        });
+
+        html += '<div style="margin-top:10px;text-align:center;">' +
+          '<button onclick="openCustomPointForm(' + entry.lat + ',' + entry.lng + ')" style="background:linear-gradient(135deg,#42a5f5,#1565c0);color:#fff;border:none;border-radius:8px;padding:7px 20px;font-size:12px;cursor:pointer;font-weight:600;box-shadow:0 2px 10px rgba(66,165,245,0.3);">&#10010; 添加记录</button>' +
+          '</div></div>';
+        entry.marker.bindPopup(html);
+      }
+    }
+
+    // ===== View Switching (3 views) =====
+    function switchView(view) {
+      currentView = view;
+      var canvas = document.getElementById('canvas-container');
+      var mapEl = document.getElementById('map-container');
+      var gwEl = document.getElementById('geowriter-detail');
+      var btn3D = document.getElementById('btn3D');
+      var btnMap = document.getElementById('btnMap');
+      var btnGW = document.getElementById('btnGW');
+      var hints = document.getElementById('controlsHint');
+
+      // Reset all
+      canvas.style.display = 'none';
+      canvas.classList.remove('inactive');
+      mapEl.classList.remove('active');
+      gwEl.classList.remove('active');
+      btn3D.classList.remove('active');
+      btnMap.classList.remove('active');
+      btnGW.classList.remove('active');
+
+      if (view === '3d') {
+        canvas.style.display = 'block';
+        btn3D.classList.add('active');
+        hints.innerHTML = '<span>\uD83D\uDBB9 左键旋转</span><span>\uD83D\uDBBA 右键平移</span><span>\uD83D\uDBBB 滚轮缩放</span>';
+        onWindowResize();
+      } else if (view === 'map') {
+        mapEl.classList.add('active');
+        btnMap.classList.add('active');
+        hints.innerHTML = '<span>\uD83D\uDCCD 点击城市标记工作</span><span>\uD83D\uDBB9 拖动平移</span><span>\uD83D\uDBBB 滚轮缩放</span>';
+        if (!map) initMap();
+        else if (boreholes.length > 0) plotBoreholesOnMap();
+        setTimeout(function() { map.invalidateSize(); }, 100);
+      } else if (view === 'geowriter') {
+        gwEl.classList.add('active');
+        btnGW.classList.add('active');
+        hints.innerHTML = '<span>\uD83D\uDCDD 野外记录详情视图</span><span>\uD83D\uDCCB 可复制文本</span>';
+      }
+    }
+
+    function toggleMapView() {
+      if (currentView === '3d') switchView('map');
+      else switchView('3d');
+    }
+
+    // ===== Boreholes on Map =====
+    function plotBoreholesOnMap() {
+      if (!map) return;
+      boreholeMarkers.forEach(function(m) { map.removeLayer(m); });
+      boreholeMarkers = [];
+
+      var bounds = getBounds();
+      var centerX = (bounds.minX + bounds.maxX) / 2;
+      var centerY = (bounds.minY + bounds.maxY) / 2;
+      var refLat = 31.23, refLng = 121.47;
+      var scale = 0.00005;
+
+      boreholes.forEach(function(bh, idx) {
+        var lat = refLat + (bh.y - centerY) * scale;
+        var lng = refLng + (bh.x - centerX) * scale;
+
+        // 自定义钻孔标记图标
+        var bhIcon = L.divIcon({
+          className: '',
+          html: '<div class="borehole-map-marker" style="animation-delay:' + (idx * 0.08) + 's">' +
+            '<div style="width:18px;height:18px;background:linear-gradient(135deg,#ef5350,#c62828);border-radius:50%;border:2.5px solid #fff;box-shadow:0 2px 10px rgba(239,83,80,0.5),inset 0 1px 2px rgba(255,255,255,0.3);display:flex;align-items:center;justify-content:center;">' +
+              '<div style="width:6px;height:6px;background:#fff;border-radius:50%;"></div>' +
+            '</div>' +
+          '</div>',
+          iconSize: [18, 18],
+          iconAnchor: [9, 9]
+        });
+
+        var marker = L.marker([lat, lng], { icon: bhIcon }).addTo(map);
+        marker.bindPopup(
+          '<div style="min-width:180px;">' +
+            '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">' +
+              '<div style="width:10px;height:10px;background:linear-gradient(135deg,#ef5350,#c62828);border-radius:50%;"></div>' +
+              '<strong style="color:#2dd4bf;font-size:14px;">' + bh.name + '</strong>' +
+            '</div>' +
+            '<div style="font-size:12px;color:#78909c;margin-bottom:4px;">深度: <span style="color:#e0f2f1;font-weight:600;">' + bh.depth.toFixed(0) + 'm</span></div>' +
+            '<div style="font-size:11px;color:#78909c;">地层: <span style="color:#b0bec5;">' + bh.layers.length + ' 层</span></div>' +
+          '</div>'
+        );
+        boreholeMarkers.push(marker);
+      });
+    }
+
+    // ===== Work Records =====
+    var WORK_TYPES = {
+      drill: { label: '钻孔施工', emoji: '\uD83D\uDD27', cssClass: 'type-drill' },
+      sample: { label: '样品采集', emoji: '\uD83D\uDCE6', cssClass: 'type-sample' },
+      observation: { label: '地质观察', emoji: '\uD83D\uDD2C', cssClass: 'type-observation' },
+      measure: { label: '测量放样', emoji: '\uD83C\uDFB2', cssClass: 'type-measure' },
+      safety: { label: '安全检查', emoji: '\u26A0\uFE0F', cssClass: 'type-safety' },
+      other: { label: '其他工作', emoji: '\uD83D\uDCDD', cssClass: 'type-drill' },
+      fieldrecord: { label: '野外记录', emoji: '\uD83D\uDCD5', cssClass: 'type-fieldrecord' },
+      model: { label: '建模项目', emoji: '\uD83C\uDF10', cssClass: 'type-model' }
+    };
+
+    function loadSampleWorkRecords() {
+      var today = new Date();
+      var samples = [
+        { city: '西安', type: 'observation',
+          desc: '秦岭北麓地质露头观察，发现明显的断层构造带，走向NW-SE，破碎带宽度约15m，建议进一步勘探。' },
+        { city: '成都', type: 'drill',
+          desc: '成都平原第四系覆盖区钻孔施工，终孔深度120m，揭示砂卵石层厚度约45m，含水层丰富。' },
+        { city: '武汉', type: 'measure',
+          desc: '长江沿岸工程地质测绘，完成5km剖面线的地质填图和测量工作，发现3处古河道遗迹。' },
+        { city: '昆明', type: 'sample',
+          desc: '滇池东岸采集沉积物柱状样3组，用于古环境重建和气候演变分析。' },
+        { city: '兰州', type: 'safety',
+          desc: '黄土高原边坡稳定性调查，发现3处潜在滑坡隐患点，已设置监测点。' }
+      ];
+
+      samples.forEach(function(s, i) {
+        // Search all provinces for the city
+        var cityData = null;
+        Object.keys(CHINA_REGIONS).some(function(province) {
+          var found = CHINA_REGIONS[province].cities.find(function(c) { return c.name === s.city; });
+          if (found) { cityData = found; return true; }
+          return false;
+        });
+        if (!cityData) return;
+        var date = new Date(today);
+        date.setDate(date.getDate() - (samples.length - i) * 3);
+        var record = {
+          id: workRecordIdCounter++,
+          city: s.city,
+          lat: cityData.lat,
+          lng: cityData.lng,
+          location: s.city,
+          type: s.type,
+          desc: s.desc,
+          date: date.toISOString().split('T')[0]
+        };
+        workRecords.push(record);
+        if (cityMarkers[s.city]) {
+          cityMarkers[s.city].records.push(record);
+          updateCityMarker(s.city);
+        }
+      });
+    }
+
+    function saveMarker() {
+      var locationName = document.getElementById('mfLocation').value.trim() || '未命名点位';
+      var type = document.getElementById('mfType').value;
+      var desc = document.getElementById('mfDesc').value || '无描述';
+      var date = document.getElementById('mfDate').value || new Date().toISOString().split('T')[0];
+
+      if (pendingCity) {
+        // 城市标记模式（原有逻辑）
+        var record = {
+          id: workRecordIdCounter++,
+          city: pendingCity.name,
+          lat: pendingCity.lat,
+          lng: pendingCity.lng,
+          location: locationName,
+          type: type,
+          desc: desc,
+          date: date
+        };
+        workRecords.push(record);
+        cityMarkers[pendingCity.name].records.push(record);
+        updateCityMarker(pendingCity.name);
+        closeMarkerForm();
+        showToast('\u2705 已在 ' + pendingCity.name + ' 添加工作记录！');
+      } else if (pendingLatLng) {
+        // 自定义点位模式
+        var record = {
+          id: workRecordIdCounter++,
+          city: '__custom__',
+          customMarkerId: null,
+          lat: pendingLatLng.lat,
+          lng: pendingLatLng.lng,
+          location: locationName,
+          type: type,
+          desc: desc,
+          date: date
+        };
+        workRecords.push(record);
+
+        // 查找或创建该位置的自定义标记
+        var existing = customMarkers.find(function(cm) {
+          return Math.abs(cm.lat - pendingLatLng.lat) < 0.0001 && Math.abs(cm.lng - pendingLatLng.lng) < 0.0001;
+        });
+        if (existing) {
+          existing.records.push(record);
+          record.customMarkerId = existing.id;
+          updateCustomMarker(existing);
+        } else {
+          var entry = addCustomMarker(pendingLatLng.lat, pendingLatLng.lng);
+          entry.records.push(record);
+          record.customMarkerId = entry.id;
+          updateCustomMarker(entry);
+        }
+
+        closeMarkerForm();
+        showToast('\u2705 已在 (' + pendingLatLng.lat.toFixed(4) + ', ' + pendingLatLng.lng.toFixed(4) + ') 添加工作记录！');
+      } else {
+        showToast('请先在地图上选择一个位置！');
+        return;
+      }
+      updateWorkRecordList();
+    }
+
+    function updateWorkRecordList() {
+      var container = document.getElementById('workRecordList');
+      document.getElementById('recordCount').textContent = workRecords.length + ' 条';
+      if (workRecords.length === 0) {
+        container.innerHTML = '<div style="font-size:0.75rem;color:var(--muted);text-align:center;padding:12px;">暂无记录，切换到全国地图后<br>点击任意位置添加工作记录</div>';
+        return;
+      }
+      var sorted = workRecords.slice().sort(function(a, b) { return b.date.localeCompare(a.date); });
+      container.innerHTML = sorted.map(function(r) {
+        var typeInfo = WORK_TYPES[r.type] || WORK_TYPES.other;
+        return '<div class="work-record" onclick="focusCity(' + r.id + ')" style="cursor:pointer;">' +
+          '<div class="work-record-header">' +
+            '<div class="work-record-title">\uD83D\uDCCD ' + r.location + '</div>' +
+            '<div class="work-record-date">' + r.date + '</div>' +
+          '</div>' +
+          '<div class="work-record-desc">' + (r.desc.length > 40 ? r.desc.substring(0, 40) + '...' : r.desc) + '</div>' +
+          '<span class="work-record-type ' + typeInfo.cssClass + '">' + typeInfo.emoji + ' ' + typeInfo.label + '</span>' +
+        '</div>';
+      }).join('');
+    }
+
+    function focusCity(id) {
+      var record = workRecords.find(function(r) { return r.id === id; });
+      if (!record) return;
+      switchView('map');
+      if (map) {
+        setTimeout(function() {
+          map.setView([record.lat, record.lng], 10);
+          if (record.city === '__custom__' && record.customMarkerId != null) {
+            var cm = customMarkers.find(function(m) { return m.id === record.customMarkerId; });
+            if (cm && cm.marker) cm.marker.openPopup();
+          } else {
+            var entry = cityMarkers[record.city];
+            if (entry && entry.marker) entry.marker.openPopup();
+          }
+        }, 200);
+      }
+    }
+
+    function closeMarkerForm() {
+      document.getElementById('markerFormOverlay').classList.remove('active');
+      pendingCity = null;
+      pendingLatLng = null;
+    }
+
+    // ==================== Init ====================
+    initThree();
+    populateGWProvinceSelect();
+
+    // 3D场景初始化完成后关闭加载角标
+    setTimeout(function() {
+      var badge = document.getElementById('loadingBadge');
+      if (badge) {
+        badge.classList.add('fade-out');
+        setTimeout(function() {
+          badge.style.display = 'none';
+        }, 400);
+      }
+    }, 600);
+
+    // ==================== Keyboard Shortcuts ====================
+    document.addEventListener('keydown', function(e) {
+      // 忽略输入框内的按键
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+      var key = e.key.toLowerCase();
+      if (key === 's' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        toggleSectionPanel();
+      } else if (key === 'r' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        calculateReserve();
+      } else if (key === 'e' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        exportCSV();
+      } else if (key === 'g' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        exportModelGLTF();
+      } else if (key === 'm' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        buildStratumModel();
+      } else if (key === 'l' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        loadSampleData();
+      }
+    });
+
+    // ==================== Drag & Drop CSV Import ====================
+    var canvasContainer = document.getElementById('canvas-container');
+    canvasContainer.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      canvasContainer.style.border = '2px dashed var(--accent)';
+    });
+    canvasContainer.addEventListener('dragleave', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      canvasContainer.style.border = '';
+    });
+    canvasContainer.addEventListener('drop', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      canvasContainer.style.border = '';
+      var file = e.dataTransfer.files[0];
+      if (!file) return;
+      var ext = file.name.split('.').pop().toLowerCase();
+      if (ext !== 'csv' && ext !== 'txt') {
+        showToast('仅支持 CSV/TXT 格式文件');
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        try { parseCSV(ev.target.result); }
+        catch (err) { showToast('文件解析失败：' + err.message); }
+      };
+      reader.onerror = function() { showToast('文件读取失败，请重试'); };
+      reader.readAsText(file, 'UTF-8');
+    });
+  </script>
+  <!-- PWA 安装引导 + 更新检测 + 离线状态 -->
+  <script>
+    // ===== PWA 安装引导 =====
+    var deferredPrompt = null;
+    var installDismissed = false;
+
+    window.addEventListener('beforeinstallprompt', function(e) {
+      e.preventDefault();
+      deferredPrompt = e;
+      if (!installDismissed && !isStandalone()) {
+        setTimeout(function() {
+          document.getElementById('installBanner').classList.add('show');
+        }, 3000);
+      }
+    });
+
+    window.addEventListener('appinstalled', function() {
+      deferredPrompt = null;
+      document.getElementById('installBanner').classList.remove('show');
+      showToast('安装成功！');
+    });
+
+    function installPWA() {
+      if (!deferredPrompt) {
+        showToast('请通过浏览器菜单安装');
+        return;
+      }
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(function(result) {
+        if (result.outcome === 'accepted') {
+          showToast('正在安装...');
+        }
+        deferredPrompt = null;
+        document.getElementById('installBanner').classList.remove('show');
+      });
+    }
+
+    function dismissInstall() {
+      installDismissed = true;
+      document.getElementById('installBanner').classList.remove('show');
+    }
+
+    function isStandalone() {
+      return window.matchMedia('(display-mode: standalone)').matches ||
+             navigator.standalone ||
+             document.referrer.includes('android-app://');
+    }
+
+    // ===== Service Worker 注册 + 更新检测 =====
+    var newWorker = null;
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function() {
+        navigator.serviceWorker.register('./sw.js').then(function(reg) {
+          console.log('[PWA] SW registered:', reg.scope);
+
+          // 监听更新
+          reg.addEventListener('updatefound', function() {
+            newWorker = reg.installing;
+            newWorker.addEventListener('statechange', function() {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                document.getElementById('updateToast').classList.add('show');
+              }
+            });
+          });
+        }).catch(function(err) {
+          console.log('[PWA] SW registration failed:', err);
+        });
+
+        // 监听来自 SW 的消息
+        navigator.serviceWorker.addEventListener('message', function(event) {
+          if (event.data && event.data.type === 'SW_UPDATED') {
+            document.getElementById('updateToast').classList.add('show');
+          }
+        });
+
+        // 定期检查更新（每30分钟）
+        setInterval(function() {
+          if (navigator.serviceWorker.controller) {
+            reg.update().catch(function() {});
+          }
+        }, 30 * 60 * 1000);
+      });
+    }
+
+    function applyUpdate() {
+      document.getElementById('updateToast').classList.remove('show');
+      if (newWorker) {
+        newWorker.postMessage({ type: 'SKIP_WAITING' });
+      }
+      window.location.reload();
+    }
+
+    // ===== 离线状态检测 =====
+    function updateOnlineStatus() {
+      var offline = !navigator.onLine;
+      document.getElementById('offlineIndicator').classList.toggle('show', offline);
+      document.getElementById('offlineBadge').classList.toggle('show', offline);
+      if (offline) {
+        setTimeout(function() {
+          document.getElementById('offlineBadge').classList.remove('show');
+        }, 3000);
+      }
+    }
+
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus();
+  </script>
+</body>
+</html>
