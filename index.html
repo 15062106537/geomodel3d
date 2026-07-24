@@ -3787,19 +3787,17 @@
       // ===== 瓦片源列表（依次尝试，首个成功的即用） =====
       var tileSources = [
         {
-          url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+          url: 'https://osm.tuna.tsinghua.edu.cn/{z}/{x}/{y}.png',
           options: {
-            maxZoom: 19,
-            subdomains: 'abcd',
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+            maxZoom: 18,
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> | 清华镜像'
           }
         },
         {
-          url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+          url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
           options: {
             maxZoom: 18,
-            subdomains: 'abc',
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            attribution: '&copy; Esri, HERE, Garmin'
           }
         },
         {
@@ -3808,6 +3806,14 @@
             maxZoom: 19,
             subdomains: 'abcd',
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          }
+        },
+        {
+          url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+          options: {
+            maxZoom: 18,
+            subdomains: 'abc',
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           }
         }
       ];
@@ -3905,7 +3911,7 @@
               chinaGeoLoaded = true;
               console.log('GeoJSON源[' + idx + ']加载成功，共' + data.features.length + '个区域');
               // 省份填充层（白色背景适配）
-              L.geoJSON(data, {
+              var provinceLayer = L.geoJSON(data, {
                 style: function(feature) {
                   return {
                     fillColor: '#e8ecf1',
@@ -3917,6 +3923,20 @@
                   };
                 },
                 onEachFeature: function(feature, layer) {
+                  // 省份名称标签（永久显示）
+                  if (feature.properties && feature.properties.name) {
+                    var bounds = layer.getBounds();
+                    var center = bounds.getCenter();
+                    L.marker(center, {
+                      icon: L.divIcon({
+                        className: 'province-label',
+                        html: '<span style="font-size:9px;color:#607d8b;font-weight:500;white-space:nowrap;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff;">' + feature.properties.name + '</span>',
+                        iconSize: [0, 0]
+                      }),
+                      interactive: false,
+                      keyboard: false
+                    }).addTo(map);
+                  }
                   layer.on('mouseover', function(e) {
                     layer.setStyle({
                       fillColor: '#d0d8e0',
