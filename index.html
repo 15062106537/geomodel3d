@@ -3774,7 +3774,7 @@
       if (map) return;
       map = L.map('map-container', {
         center: [35.86, 104.19],
-        zoom: 4,
+        zoom: 5,
         zoomControl: true,
         attributionControl: true,
         minZoom: 3,
@@ -3835,11 +3835,12 @@
         var src = tileSources[idx];
         var layer = L.tileLayer(src.url, src.options);
         var loaded = false;
-        var errored = false;
+        var errorCount = 0;
+        var totalTiles = 0;
 
         // 5秒内如果没有任何瓦片加载成功，切换到下一个源
         var checkTimer = setTimeout(function() {
-          if (!loaded && !errored && idx < tileSources.length - 1) {
+          if (!loaded && idx < tileSources.length - 1) {
             console.warn('瓦片源[' + idx + ']超时，切换到下一个');
             map.removeLayer(layer);
             loadTileLayer(idx + 1);
@@ -3856,14 +3857,14 @@
         });
 
         layer.on('tileerror', function() {
-          if (!errored && !loaded) {
-            errored = true;
+          errorCount++;
+          totalTiles++;
+          // 只有当错误数超过8个且没有成功时才切换
+          if (!loaded && errorCount >= 8 && idx < tileSources.length - 1) {
             clearTimeout(checkTimer);
-            console.warn('瓦片源[' + idx + ']出错，切换到下一个');
+            console.warn('瓦片源[' + idx + ']连续' + errorCount + '个错误，切换到下一个');
             map.removeLayer(layer);
-            if (idx < tileSources.length - 1) {
-              loadTileLayer(idx + 1);
-            }
+            loadTileLayer(idx + 1);
           }
         });
 

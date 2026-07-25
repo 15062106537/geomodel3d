@@ -1,5 +1,5 @@
 // GeoModel3D Service Worker v3.0 — 增强离线缓存 + 自动更新
-const CACHE_NAME = 'geomodel3d-v3.6';
+const CACHE_NAME = 'geomodel3d-v3.7';
 const RUNTIME_CACHE = 'geomodel3d-runtime';
 
 // 核心静态资源（首次安装即缓存）
@@ -66,6 +66,8 @@ self.addEventListener('fetch', function(event) {
   if (req.method !== 'GET') return;
   // 跳过 chrome-extension
   if (url.protocol === 'chrome-extension:') return;
+  // 跳过地图瓦片请求，让浏览器直接处理（避免SW干扰瓦片加载）
+  if (url.pathname.includes('appmaptile') || url.pathname.includes('realtimerender') || url.pathname.match(/\/\d+\/\d+\/\d+\./)) return;
 
   // index.html 始终网络优先，确保最新版本
   if (url.pathname.endsWith('/') || url.pathname.endsWith('index.html')) {
