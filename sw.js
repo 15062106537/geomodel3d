@@ -1,5 +1,5 @@
 // GeoModel3D Service Worker v3.0 — 增强离线缓存 + 自动更新
-const CACHE_NAME = 'geomodel3d-v3.7';
+const CACHE_NAME = 'geomodel3d-v3.8';
 const RUNTIME_CACHE = 'geomodel3d-runtime';
 
 // 核心静态资源（首次安装即缓存）
