@@ -1,5 +1,5 @@
 // GeoModel3D Service Worker v3.0 — 增强离线缓存 + 自动更新
-const CACHE_NAME = 'geomodel3d-v5.0';
+const CACHE_NAME = 'geomodel3d-v6.0';
 const RUNTIME_CACHE = 'geomodel3d-runtime';
 
 // 核心静态资源（首次安装即缓存）
@@ -16,7 +16,7 @@ const PRECACHE_ASSETS = [
 ];
 
 // CDN 资源（运行时缓存，带过期时间）
-const CDN_HOSTS = ['unpkg.com', 'is.autonavi.com', 'autonavi.com', 'map.gtimg.com', 'gtimg.com', 'geo.datav.aliyun.com', 'tile.openstreetmap.org', 'basemaps.cartocdn.com', 'cartocdn.com', 'osm.tuna.tsinghua.edu.cn', 'server.arcgisonline.com', 'arcgisonline.com'];
+const CDN_HOSTS = ['unpkg.com', 'is.autonavi.com', 'autonavi.com', 'map.gtimg.com', 'gtimg.com', 'geo.datav.aliyun.com', 'tile.openstreetmap.org', 'basemaps.cartocdn.com', 'cartocdn.com', 'osm.tuna.tsinghua.edu.cn', 'server.arcgisonline.com', 'arcgisonline.com', 'cdn.jsdelivr.net', 'jsdelivr.net', 'supabase.co', 'supabase.net'];
 
 // ===== 安装：预缓存核心资源 =====
 self.addEventListener('install', function(event) {
@@ -68,6 +68,8 @@ self.addEventListener('fetch', function(event) {
   if (url.protocol === 'chrome-extension:') return;
   // 跳过地图瓦片请求，让浏览器直接处理（避免SW干扰瓦片加载）
   if (url.pathname.includes('appmaptile') || url.pathname.includes('realtimerender') || url.pathname.match(/\/\d+\/\d+\/\d+\./)) return;
+  // 跳过 Supabase Auth API 请求，确保认证不受SW干扰
+  if (url.hostname.includes('supabase.co') && (url.pathname.includes('/auth/v1/') || url.pathname.includes('/rest/v1/'))) return;
 
   // index.html 始终网络优先，确保最新版本
   if (url.pathname.endsWith('/') || url.pathname.endsWith('index.html')) {
