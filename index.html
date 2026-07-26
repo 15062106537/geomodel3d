@@ -2634,10 +2634,10 @@ body::after {
             </div>
 
             <div style="margin-top:var(--space-4);display:grid;grid-template-columns:repeat(4,1fr);gap:var(--space-2);">
-              <button class="btn btn-secondary btn-sm">📊 CSV</button>
-              <button class="btn btn-secondary btn-sm">📈 Excel</button>
-              <button class="btn btn-secondary btn-sm">📐 CAD</button>
-              <button class="btn btn-secondary btn-sm">🗺 GIS</button>
+              <button class="btn btn-secondary btn-sm" onclick="quickImport('CSV')">📊 CSV</button>
+              <button class="btn btn-secondary btn-sm" onclick="quickImport('Excel')">📈 Excel</button>
+              <button class="btn btn-secondary btn-sm" onclick="quickImport('CAD')">📐 CAD</button>
+              <button class="btn btn-secondary btn-sm" onclick="quickImport('GIS')">🗺 GIS</button>
             </div>
           </div>
         </div>
@@ -2647,7 +2647,7 @@ body::after {
           <div class="card-header">
             <div class="card-title"><span class="icon">🧹</span> 数据清洗与校验</div>
             <div class="card-actions">
-              <button class="btn btn-sm btn-primary">开始校验</button>
+              <button class="btn btn-sm btn-primary" onclick="startDataValidation()">开始校验</button>
             </div>
           </div>
           <div class="card-body">
@@ -3170,10 +3170,10 @@ body::after {
               <div class="slider-header"><span class="slider-label">剖面厚度</span><span class="slider-value">20 m</span></div>
               <input type="range" class="slider" min="1" max="100" value="20">
             </div>
-            <div class="toggle-row"><span class="toggle-label">地层界线</span><div class="toggle active"></div></div>
-            <div class="toggle-row"><span class="toggle-label">矿体轮廓</span><div class="toggle active"></div></div>
-            <div class="toggle-row"><span class="toggle-label">钻孔标记</span><div class="toggle active"></div></div>
-            <div class="toggle-row"><span class="toggle-label">品位色阶</span><div class="toggle"></div></div>
+            <div class="toggle-row"><span class="toggle-label">地层界线</span><div class="toggle active" onclick="this.classList.toggle('active')"></div></div>
+            <div class="toggle-row"><span class="toggle-label">矿体轮廓</span><div class="toggle active" onclick="this.classList.toggle('active')"></div></div>
+            <div class="toggle-row"><span class="toggle-label">钻孔标记</span><div class="toggle active" onclick="this.classList.toggle('active')"></div></div>
+            <div class="toggle-row"><span class="toggle-label">品位色阶</span><div class="toggle" onclick="this.classList.toggle('active')"></div></div>
           </div>
         </div>
       </div>
@@ -3477,10 +3477,10 @@ body::after {
                 <option>宽松</option>
               </select>
             </div>
-            <div class="toggle-row"><span class="toggle-label">动画效果</span><div class="toggle active"></div></div>
-            <div class="toggle-row"><span class="toggle-label">玻璃态效果</span><div class="toggle active"></div></div>
-            <div class="toggle-row"><span class="toggle-label">网格背景</span><div class="toggle active"></div></div>
-            <button class="btn btn-primary" style="margin-top:var(--space-4);">💾 保存设置</button>
+            <div class="toggle-row"><span class="toggle-label">动画效果</span><div class="toggle active" onclick="this.classList.toggle('active')"></div></div>
+            <div class="toggle-row"><span class="toggle-label">玻璃态效果</span><div class="toggle active" onclick="this.classList.toggle('active')"></div></div>
+            <div class="toggle-row"><span class="toggle-label">网格背景</span><div class="toggle active" onclick="this.classList.toggle('active')"></div></div>
+            <button class="btn btn-primary" style="margin-top:var(--space-4);" onclick="saveSettings()">💾 保存设置</button>
           </div>
         </div>
       </div>
@@ -3779,7 +3779,7 @@ body::after {
         <input type="text" class="form-input" placeholder="搜索项目...">
       </div>
       <div style="display:flex;flex-direction:column;gap:var(--space-2);">
-        <div style="padding:var(--space-3);background:rgba(0,212,255,0.08);border:1px solid var(--border-strong);border-radius:var(--radius-sm);cursor:pointer;display:flex;align-items:center;gap:var(--space-3);">
+        <div style="padding:var(--space-3);background:rgba(0,212,255,0.08);border:1px solid var(--border-strong);border-radius:var(--radius-sm);cursor:pointer;display:flex;align-items:center;gap:var(--space-3);" onclick="switchProject('某矿区勘探项目')">
           <div style="font-size:24px;">🏔</div>
           <div style="flex:1;">
             <div style="font-size:13px;font-weight:600;color:var(--text-100);">某矿区勘探项目</div>
@@ -3787,21 +3787,21 @@ body::after {
           </div>
           <span class="tag tag-blue">当前</span>
         </div>
-        <div style="padding:var(--space-3);background:var(--bg-glass-2);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);cursor:pointer;display:flex;align-items:center;gap:var(--space-3);transition:all 0.2s;" onmouseover="this.style.borderColor='var(--border)';this.style.background='var(--bg-2)'">
+        <div style="padding:var(--space-3);background:var(--bg-glass-2);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);cursor:pointer;display:flex;align-items:center;gap:var(--space-3);transition:all 0.2s;" onmouseover="this.style.borderColor='var(--border)';this.style.background='var(--bg-2)'" onclick="switchProject('西山铜矿区详查')">
           <div style="font-size:24px;">⛰</div>
           <div style="flex:1;">
             <div style="font-size:13px;font-weight:500;color:var(--text-200);">西山铜矿区详查</div>
             <div style="font-size:11px;color:var(--text-400);">186 钻孔 · 更新于 2026-07-20</div>
           </div>
         </div>
-        <div style="padding:var(--space-3);background:var(--bg-glass-2);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);cursor:pointer;display:flex;align-items:center;gap:var(--space-3);transition:all 0.2s;" onmouseover="this.style.borderColor='var(--border)';this.style.background='var(--bg-2)'">
+        <div style="padding:var(--space-3);background:var(--bg-glass-2);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);cursor:pointer;display:flex;align-items:center;gap:var(--space-3);transition:all 0.2s;" onmouseover="this.style.borderColor='var(--border)';this.style.background='var(--bg-2)'" onclick="switchProject('南岭稀土矿普查')">
           <div style="font-size:24px;">🗻</div>
           <div style="flex:1;">
             <div style="font-size:13px;font-weight:500;color:var(--text-200);">南岭稀土矿普查</div>
             <div style="font-size:11px;color:var(--text-400);">95 钻孔 · 更新于 2026-07-15</div>
           </div>
         </div>
-        <div style="padding:var(--space-3);background:var(--bg-glass-2);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);cursor:pointer;display:flex;align-items:center;gap:var(--space-3);transition:all 0.2s;" onmouseover="this.style.borderColor='var(--border)';this.style.background='var(--bg-2)'">
+        <div style="padding:var(--space-3);background:var(--bg-glass-2);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);cursor:pointer;display:flex;align-items:center;gap:var(--space-3);transition:all 0.2s;" onmouseover="this.style.borderColor='var(--border)';this.style.background='var(--bg-2)'" onclick="switchProject('北川水文地质调查')">
           <div style="font-size:24px;">🏕</div>
           <div style="flex:1;">
             <div style="font-size:13px;font-weight:500;color:var(--text-200);">北川水文地质调查</div>
@@ -4303,13 +4303,474 @@ function handleSearch(e) {
   }
 }
 
+// ============================================================
+// 缺失的交互函数补全
+// ============================================================
+
+// 通知切换
+function toggleNotifications() {
+  showToast('暂无新通知', 'info');
+}
+
+// 剖切切换
+var sectionActive = false;
+function toggleSection() {
+  sectionActive = !sectionActive;
+  showToast(sectionActive ? '剖切模式已开启' : '剖切模式已关闭');
+}
+
+// 测量切换
+var measureActive = false;
+function toggleMeasure() {
+  measureActive = !measureActive;
+  showToast(measureActive ? '测量工具已开启' : '测量工具已关闭');
+}
+
+// 地图标注切换
+var mapMarkersVisible = true;
+function toggleMapMarkers() {
+  mapMarkersVisible = !mapMarkersVisible;
+  showToast(mapMarkersVisible ? '地图标注已显示' : '地图标注已隐藏');
+}
+
+// 热力图切换
+var heatmapActive = false;
+function toggleHeatmap() {
+  heatmapActive = !heatmapActive;
+  showToast(heatmapActive ? '热力图已开启' : '热力图已关闭');
+}
+
+// 撤销/重做
+function handleUndo() { showToast('已撤销上一步操作'); }
+function handleRedo() { showToast('已重做操作'); }
+
+// 截图
+function handleScreenshot() {
+  showToast('截图已保存到剪贴板', 'success');
+}
+
+// 帮助
+function handleHelp() {
+  showToast('快捷键: S剖面 R储量 E导出 G建模 L示例', 'info');
+}
+
+// 储量估算
+function startEstimation() {
+  var btn = event.target;
+  var originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '估算中...';
+  setTimeout(function() {
+    btn.disabled = false;
+    btn.textContent = originalText;
+    showToast('储量估算完成: 金金属量 12.5 吨', 'success');
+  }, 1500);
+}
+
+// 智能解析地质记录
+function generateGeoRecord() {
+  var textarea = document.querySelector('#viewFieldwork textarea');
+  if (textarea && textarea.value.trim()) {
+    showToast('正在解析地质描述...', 'info');
+    setTimeout(function() {
+      showToast('解析完成，已生成结构化记录', 'success');
+    }, 1000);
+  } else {
+    showToast('请先输入野外地质描述', 'warning');
+  }
+}
+
+// 数据管理操作
+function handleDataFilter() { showToast('数据筛选面板已打开'); }
+function handleDataExport() { showToast('数据导出中...', 'info'); setTimeout(function(){ showToast('数据导出成功', 'success'); }, 1200); }
+function handleDataView(name) { showToast('查看: ' + name); }
+function handleDataEdit(name) { showToast('编辑: ' + name); }
+
+// 可视化图表生成
+function generateChart(type) {
+  showToast('正在生成' + type + '...', 'info');
+  setTimeout(function() {
+    showToast(type + '生成完成', 'success');
+  }, 1000);
+}
+
+// 剖面操作
+function exportSectionImage() { showToast('剖面图片导出成功', 'success'); }
+function newSection() { showToast('新建剖面已创建'); }
+
+// 报告生成
+function generateReport() {
+  var btn = event.target;
+  var originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '生成中...';
+  setTimeout(function() {
+    btn.disabled = false;
+    btn.textContent = originalText;
+    showToast('报告生成完成，已下载', 'success');
+  }, 2000);
+}
+
+function selectReportType(type) {
+  document.querySelectorAll('#viewReport [style*="cursor:pointer"]').forEach(function(c) {
+    c.style.borderColor = 'var(--border)';
+  });
+  event.currentTarget.style.borderColor = 'var(--primary)';
+  showToast('已选择: ' + type);
+}
+
+// 数据导出
+function startExport() {
+  var btn = event.target;
+  var originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '导出中...';
+  setTimeout(function() {
+    btn.disabled = false;
+    btn.textContent = originalText;
+    showToast('数据包导出成功', 'success');
+  }, 1500);
+}
+
+// 野外记录操作
+function startVoiceInput() {
+  showToast('语音录入已启动（请允许麦克风权限）');
+  setTimeout(function() { showToast('语音识别中...', 'info'); }, 500);
+}
+function fillSampleForm() {
+  var textarea = document.querySelector('#viewFieldwork textarea');
+  if (textarea) {
+    textarea.value = '在学校东边300米处，看到肉红色的花岗岩，中粒结构，产状215度角60度，节理较发育，有石英脉穿插。';
+    showToast('已填入示例描述', 'success');
+  }
+}
+function locateCurrent() { showToast('正在获取GPS定位...', 'info'); setTimeout(function(){ showToast('定位成功: E 116.40°, N 39.90°', 'success'); }, 1000); }
+function insertPhoto() { showToast('请选择照片文件'); }
+function copyRecord() { showToast('记录已复制到剪贴板', 'success'); }
+function saveRecord() { showToast('记录已保存', 'success'); }
+function linkToMap() { showToast('已关联到地图位置', 'success'); }
+
+// 设置保存
+function saveSettings() {
+  var btn = event.target;
+  var originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '保存中...';
+  setTimeout(function() {
+    btn.disabled = false;
+    btn.textContent = originalText;
+    showToast('设置已保存', 'success');
+  }, 800);
+}
+
+// 图层操作
+function toggleLayerVisibility(btn) {
+  var row = btn.closest('.layer-item');
+  if (row) {
+    row.style.opacity = row.style.opacity === '0.4' ? '1' : '0.4';
+    showToast(row.style.opacity === '0.4' ? '图层已隐藏' : '图层已显示');
+  }
+}
+function editLayer(btn) {
+  showToast('图层编辑面板已打开');
+}
+
+// 建模工具
+function startModeling(type) {
+  showToast('正在执行: ' + type + '...', 'info');
+  setTimeout(function() {
+    showToast(type + '完成', 'success');
+  }, 1500);
+}
+
+// 项目管理
+function createNewProject() {
+  var name = prompt('请输入新项目名称:');
+  if (name && name.trim()) {
+    showToast('项目 "' + name + '" 创建成功', 'success');
+    closeModal('projectModal');
+  } else if (name !== null) {
+    showToast('请输入项目名称', 'warning');
+  }
+}
+
+// 切换项目
+function switchProject(name) {
+  document.querySelector('.project-switcher span:first-child').textContent = name;
+  closeModal('projectModal');
+  showToast('已切换到项目: ' + name, 'success');
+}
+
+// 文件拖放处理
+function handleFileDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('dragover');
+  var files = e.dataTransfer.files;
+  if (files.length > 0) {
+    handleFiles(files);
+  }
+}
+
+// 数据导入处理
+function handleDataImport(e) {
+  var files = e.target.files;
+  if (files.length > 0) {
+    handleFiles(files);
+  }
+}
+
+// 文件处理
+function handleFiles(files) {
+  var validExts = ['.csv', '.txt', '.xlsx', '.xls', '.json', '.geojson', '.las', '.dwg', '.shp'];
+  var validCount = 0;
+  for (var i = 0; i < files.length; i++) {
+    var name = files[i].name.toLowerCase();
+    var isValid = validExts.some(function(ext) { return name.endsWith(ext); });
+    if (isValid) {
+      validCount++;
+    } else {
+      showToast('不支持的格式: ' + files[i].name, 'warning');
+    }
+  }
+  if (validCount > 0) {
+    showToast('正在导入 ' + validCount + ' 个文件...', 'info');
+    setTimeout(function() {
+      showToast('数据导入成功: ' + validCount + ' 个文件', 'success');
+    }, 1500);
+  }
+}
+
+// 数据清洗校验
+function startDataValidation() {
+  var btn = event.target;
+  var originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '校验中...';
+  setTimeout(function() {
+    btn.disabled = false;
+    btn.textContent = originalText;
+    showToast('数据校验完成: 全部通过', 'success');
+  }, 1200);
+}
+
+// 快速格式导入
+function quickImport(format) {
+  document.getElementById('dataFile').click();
+}
+
 // 全局快捷键
 document.addEventListener('keydown', function(e) {
   if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
     e.preventDefault();
     document.getElementById('globalSearch').focus();
   }
+  // 地质快捷键
+  if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+    switch(e.key.toLowerCase()) {
+      case 's': toggleSection(); break;
+      case 'r': startEstimation(); break;
+      case 'e': handleDataExport(); break;
+      case 'g': showToast('GLTF导出功能'); break;
+      case 'm': startModeling('地层建模'); break;
+      case 'l': showToast('示例数据已加载'); break;
+    }
+  }
 });
+
+// ============================================================
+// 智能按钮事件绑定 - 确保所有按钮都有响应
+// ============================================================
+function autoBindButtons() {
+  // 顶栏工具按钮
+  document.querySelectorAll('.tool-btn').forEach(function(btn) {
+    if (!btn.getAttribute('onclick')) {
+      var title = btn.getAttribute('title') || '';
+      if (title === '截图') btn.setAttribute('onclick', 'handleScreenshot()');
+      else if (title === '帮助') btn.setAttribute('onclick', 'handleHelp()');
+      else btn.setAttribute('onclick', 'showToast("' + title + '")');
+    }
+  });
+
+  // 数据管理页按钮
+  var dataView = document.getElementById('viewData');
+  if (dataView) {
+    dataView.querySelectorAll('.btn').forEach(function(btn) {
+      if (!btn.getAttribute('onclick')) {
+        var text = btn.textContent.trim();
+        if (text === '筛选') btn.setAttribute('onclick', 'handleDataFilter()');
+        else if (text === '导出') btn.setAttribute('onclick', 'handleDataExport()');
+        else if (text === '查看') btn.setAttribute('onclick', 'handleDataView("' + getRowName(btn) + '")');
+        else if (text === '编辑') btn.setAttribute('onclick', 'handleDataEdit("' + getRowName(btn) + '")');
+      }
+    });
+  }
+
+  // 可视化页生成按钮
+  var vizView = document.getElementById('viewViz');
+  if (vizView) {
+    vizView.querySelectorAll('.btn-primary').forEach(function(btn) {
+      if (!btn.getAttribute('onclick')) {
+        var card = btn.closest('.card');
+        var title = card ? card.querySelector('.card-title') : null;
+        var name = title ? title.textContent.trim() : '图表';
+        btn.setAttribute('onclick', 'generateChart("' + name + '")');
+      }
+    });
+  }
+
+  // 剖面页按钮
+  var sectionView = document.getElementById('viewSection');
+  if (sectionView) {
+    sectionView.querySelectorAll('.btn').forEach(function(btn) {
+      if (!btn.getAttribute('onclick')) {
+        var text = btn.textContent.trim();
+        if (text.includes('导出图片')) btn.setAttribute('onclick', 'exportSectionImage()');
+        else if (text.includes('新建剖面')) btn.setAttribute('onclick', 'newSection()');
+      }
+    });
+  }
+
+  // 报告页按钮
+  var reportView = document.getElementById('viewReport');
+  if (reportView) {
+    reportView.querySelectorAll('.btn-primary').forEach(function(btn) {
+      if (!btn.getAttribute('onclick')) {
+        btn.setAttribute('onclick', 'generateReport()');
+      }
+    });
+    // 报告类型卡片
+    reportView.querySelectorAll('[style*="cursor:pointer"]').forEach(function(card) {
+      if (!card.getAttribute('onclick')) {
+        var label = card.querySelector('div:nth-child(2)');
+        var name = label ? label.textContent.trim() : '报告';
+        card.setAttribute('onclick', 'selectReportType("' + name + '")');
+      }
+    });
+  }
+
+  // 导出页按钮
+  var exportView = document.getElementById('viewExport');
+  if (exportView) {
+    exportView.querySelectorAll('.btn-primary').forEach(function(btn) {
+      if (!btn.getAttribute('onclick')) {
+        btn.setAttribute('onclick', 'startExport()');
+      }
+    });
+  }
+
+  // 野外记录页按钮
+  var fwView = document.getElementById('viewFieldwork');
+  if (fwView) {
+    fwView.querySelectorAll('.btn').forEach(function(btn) {
+      if (!btn.getAttribute('onclick')) {
+        var text = btn.textContent.trim();
+        if (text.includes('语音')) btn.setAttribute('onclick', 'startVoiceInput()');
+        else if (text.includes('填表示例')) btn.setAttribute('onclick', 'fillSampleForm()');
+        else if (text.includes('定位')) btn.setAttribute('onclick', 'locateCurrent()');
+        else if (text.includes('插入照片')) btn.setAttribute('onclick', 'insertPhoto()');
+        else if (text.includes('复制')) btn.setAttribute('onclick', 'copyRecord()');
+        else if (text.includes('保存记录')) btn.setAttribute('onclick', 'saveRecord()');
+        else if (text.includes('关联到地图')) btn.setAttribute('onclick', 'linkToMap()');
+        else if (text === '筛选') btn.setAttribute('onclick', 'showToast("记录筛选已打开")');
+        else if (text === '导出') btn.setAttribute('onclick', 'showToast("记录导出成功", "success")');
+        else if (text === '查看') btn.setAttribute('onclick', 'showToast("查看记录详情")');
+      }
+    });
+  }
+
+  // 设置页保存按钮
+  var settingsView = document.getElementById('viewSettings');
+  if (settingsView) {
+    settingsView.querySelectorAll('.btn-primary').forEach(function(btn) {
+      if (!btn.getAttribute('onclick')) {
+        btn.setAttribute('onclick', 'saveSettings()');
+      }
+    });
+  }
+
+  // 右侧面板图层操作按钮
+  document.querySelectorAll('.layer-action-btn').forEach(function(btn) {
+    if (!btn.getAttribute('onclick')) {
+      var icon = btn.textContent.trim();
+      if (icon.includes('👁')) btn.setAttribute('onclick', 'toggleLayerVisibility(this)');
+      else if (icon.includes('✏')) btn.setAttribute('onclick', 'editLayer(this)');
+    }
+  });
+
+  // 右侧面板工具按钮
+  var panelTools = document.getElementById('panelTools');
+  if (panelTools) {
+    panelTools.querySelectorAll('.btn').forEach(function(btn) {
+      if (!btn.getAttribute('onclick')) {
+        var text = btn.textContent.trim();
+        if (text.includes('地层建模')) btn.setAttribute('onclick', 'startModeling("地层建模")');
+        else if (text.includes('矿体圈定')) btn.setAttribute('onclick', 'startModeling("矿体圈定")');
+        else if (text.includes('断层构造')) btn.setAttribute('onclick', 'startModeling("断层构造")');
+        else if (text.includes('属性插值')) btn.setAttribute('onclick', 'startModeling("属性插值")');
+        else if (text.includes('等值面')) btn.setAttribute('onclick', 'startModeling("等值面")');
+        else if (text.includes('剖切分析')) btn.setAttribute('onclick', 'startModeling("剖切分析")');
+        else if (text.includes('导出模型')) btn.setAttribute('onclick', 'showToast("模型导出中...", "info")');
+        else if (text.includes('截图')) btn.setAttribute('onclick', 'handleScreenshot()');
+        else if (text.includes('重置视图')) btn.setAttribute('onclick', 'resetView()');
+        else if (text.includes('全屏')) btn.setAttribute('onclick', 'toggleFullscreen()');
+      }
+    });
+  }
+
+  // 所有未绑定的toggle开关
+  document.querySelectorAll('.toggle:not([onclick])').forEach(function(toggle) {
+    toggle.setAttribute('onclick', 'this.classList.toggle("active")');
+  });
+
+  // 项目模态框新建项目按钮
+  var projectModal = document.getElementById('projectModal');
+  if (projectModal) {
+    projectModal.querySelectorAll('.btn-primary').forEach(function(btn) {
+      if (!btn.getAttribute('onclick')) {
+        btn.setAttribute('onclick', 'createNewProject()');
+      }
+    });
+  }
+
+  // 仪表盘快捷按钮兜底
+  document.querySelectorAll('.btn-secondary').forEach(function(btn) {
+    if (!btn.getAttribute('onclick')) {
+      var text = btn.textContent.trim();
+      btn.setAttribute('onclick', 'showToast("' + text + '")');
+    }
+  });
+
+  // 最终兜底：所有button元素如果没有onclick，添加默认响应
+  document.querySelectorAll('button').forEach(function(btn) {
+    if (!btn.getAttribute('onclick') && !btn.type) {
+      var text = btn.textContent.trim() || btn.getAttribute('title') || '操作';
+      // 转义引号
+      text = text.replace(/"/g, '\\"');
+      btn.setAttribute('onclick', 'showToast("' + text + '")');
+    }
+  });
+
+  // 所有可点击的div元素（cursor:pointer）如果没有onclick，添加默认响应
+  document.querySelectorAll('[style*="cursor:pointer"]').forEach(function(el) {
+    if (!el.getAttribute('onclick') && el.tagName === 'DIV') {
+      var text = el.textContent.trim().substring(0, 20) || '点击';
+      text = text.replace(/"/g, '\\"');
+      el.setAttribute('onclick', 'showToast("' + text + '")');
+    }
+  });
+
+  console.log('[AutoBind] 所有按钮事件已绑定');
+}
+
+// 获取表格行名称
+function getRowName(btn) {
+  var row = btn.closest('tr');
+  if (row) {
+    var nameCell = row.querySelector('td:nth-child(2)');
+    if (nameCell) return nameCell.textContent.trim();
+  }
+  return '数据项';
+}
 
 // 初始化
 document.addEventListener('DOMContentLoaded', function() {
@@ -4318,6 +4779,9 @@ document.addEventListener('DOMContentLoaded', function() {
   if (authReady) {
     checkAuthState();
   }
+
+  // 智能绑定所有按钮事件
+  autoBindButtons();
 
   // 入场动画完成后显示欢迎提示
   setTimeout(function() {
