@@ -1,18 +1,22 @@
-// GeoModel3D Service Worker v8.0 — 强制更新缓存
-const CACHE_NAME = 'geomodel3d-v8.0';
-const RUNTIME_CACHE = 'geomodel3d-runtime-v8';
+// GeoModel3D Service Worker v9.0 — 本地库文件优先
+const CACHE_NAME = 'geomodel3d-v9.0';
+const RUNTIME_CACHE = 'geomodel3d-runtime-v9';
 
-// 核心静态资源
+// 核心静态资源（含本地库文件）
 const PRECACHE_ASSETS = [
   './',
   './index.html',
   './manifest.json',
+  './three.min.js',
+  './OrbitControls.js',
+  './leaflet.js',
+  './leaflet.css',
   './icons/icon-192.png',
   './icons/icon-512.png'
 ];
 
-// CDN 资源
-const CDN_HOSTS = ['unpkg.com', 'is.autonavi.com', 'autonavi.com', 'map.gtimg.com', 'gtimg.com', 'geo.datav.aliyun.com', 'tile.openstreetmap.org', 'basemaps.cartocdn.com', 'cartocdn.com', 'osm.tuna.tsinghua.edu.cn', 'server.arcgisonline.com', 'arcgisonline.com', 'cdn.jsdelivr.net', 'jsdelivr.net', 'supabase.co', 'supabase.net', 'fonts.googleapis.com', 'fonts.gstatic.com'];
+// CDN 资源（地图瓦片等）
+const CDN_HOSTS = ['is.autonavi.com', 'autonavi.com', 'map.gtimg.com', 'gtimg.com', 'geo.datav.aliyun.com'];
 
 // ===== 安装：预缓存核心资源 =====
 self.addEventListener('install', function(event) {
@@ -61,7 +65,6 @@ self.addEventListener('fetch', function(event) {
   if (req.method !== 'GET') return;
   if (url.protocol === 'chrome-extension:') return;
   if (url.pathname.includes('appmaptile') || url.pathname.includes('realtimerender') || url.pathname.match(/\/\d+\/\d+\/\d+\./)) return;
-  if (url.hostname.includes('supabase.co') && (url.pathname.includes('/auth/v1/') || url.pathname.includes('/rest/v1/'))) return;
 
   // index.html 和导航请求：始终网络优先
   if (url.pathname.endsWith('/') || url.pathname.endsWith('index.html') || req.mode === 'navigate') {

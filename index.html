@@ -4,38 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GeoModel3D Pro — 智能地质建模平台</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500;600;700&family=Orbitron:wght@500;600;700;800&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-<script>
-// Three.js 备用 CDN
-if (typeof THREE === 'undefined') {
-  document.write('<script src="https://unpkg.com/three@0.128.0/build/three.min.js"><\/script>');
-}
-</script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js" onerror="
-if (typeof THREE !== 'undefined' && !THREE.OrbitControls) {
-  var s = document.createElement('script');
-  s.src = 'https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js';
-  document.head.appendChild(s);
-}
-"></script>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-// 备用 CDN：如果 jsdelivr 加载失败，尝试 unpkg
-setTimeout(function() {
-  if (typeof window.supabase === 'undefined') {
-    var s = document.createElement('script');
-    s.src = 'https://unpkg.com/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js';
-    s.onload = function() { console.log('[Auth] Supabase SDK 从备用 CDN 加载成功'); };
-    s.onerror = function() { console.error('[Auth] Supabase SDK 所有 CDN 加载失败'); };
-    document.head.appendChild(s);
-  }
-}, 2000);
-</script>
+<!-- 本地库文件，秒加载 -->
+<script src="three.min.js"></script>
+<script src="OrbitControls.js"></script>
+<link rel="stylesheet" href="leaflet.css">
+<script src="leaflet.js"></script>
 <style>
 /* ============================================================
    GeoModel3D Pro — 智能地质建模平台
@@ -76,9 +49,9 @@ setTimeout(function() {
   --text-500: #475569;
 
   /* 字体 */
-  --font-display: 'Orbitron', 'Noto Sans SC', sans-serif;
-  --font-body: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+  --font-display: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  --font-body: 'Microsoft YaHei', -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+  --font-mono: 'Consolas', 'Courier New', monospace;
 
   /* 阴影与发光 */
   --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -2906,16 +2879,10 @@ body::after {
         <div class="card fade-in-up stagger-5">
           <div class="card-header">
             <div class="card-title"><span class="icon">📊</span> 钻孔柱状图</div>
-            <button class="btn btn-sm btn-primary">生成</button>
+            <button class="btn btn-sm btn-primary" onclick="generateChart('column')">生成</button>
           </div>
-          <div class="card-body" style="height:200px;display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));">
-            <div style="display:flex;gap:12px;align-items:flex-end;height:160px;">
-              <div style="width:24px;background:linear-gradient(180deg,#8b7355 0%,#8b7355 20%,#d4a574 20%,#d4a574 45%,#6b8e6b 45%,#6b8e6b 70%,#9e9e9e 70%,#9e9e9e 100%);border-radius:4px 4px 0 0;"></div>
-              <div style="width:24px;background:linear-gradient(180deg,#8b7355 0%,#8b7355 15%,#d4a574 15%,#d4a574 40%,#6b8e6b 40%,#6b8e6b 65%,#c9a86c 65%,#c9a86c 85%,#9e9e9e 85%,#9e9e9e 100%);border-radius:4px 4px 0 0;"></div>
-              <div style="width:24px;background:linear-gradient(180deg,#8b7355 0%,#8b7355 25%,#d4a574 25%,#d4a574 50%,#6b8e6b 50%,#6b8e6b 75%,#9e9e9e 75%,#9e9e9e 100%);border-radius:4px 4px 0 0;"></div>
-              <div style="width:24px;background:linear-gradient(180deg,#a0826d 0%,#a0826d 10%,#d4a574 10%,#d4a574 35%,#6b8e6b 35%,#6b8e6b 55%,#c9a86c 55%,#c9a86c 80%,#7a7a7a 80%,#7a7a7a 100%);border-radius:4px 4px 0 0;"></div>
-              <div style="width:24px;background:linear-gradient(180deg,#8b7355 0%,#8b7355 20%,#b8956e 20%,#b8956e 45%,#6b8e6b 45%,#6b8e6b 70%,#9e9e9e 70%,#9e9e9e 100%);border-radius:4px 4px 0 0;"></div>
-            </div>
+          <div class="card-body" style="height:200px;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));position:relative;">
+            <canvas id="chartColumn" style="width:100%;height:100%;" width="400" height="200"></canvas>
           </div>
         </div>
 
@@ -2923,18 +2890,10 @@ body::after {
         <div class="card fade-in-up stagger-5">
           <div class="card-header">
             <div class="card-title"><span class="icon">📐</span> 地质剖面图</div>
-            <button class="btn btn-sm btn-primary">生成</button>
+            <button class="btn btn-sm btn-primary" onclick="generateChart('section')">生成</button>
           </div>
-          <div class="card-body" style="height:200px;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));position:relative;overflow:hidden;">
-            <svg width="100%" height="100%" viewBox="0 0 300 200">
-              <path d="M0,140 Q50,120 100,130 T200,110 T300,125 L300,200 L0,200 Z" fill="#6b8e6b" opacity="0.6"/>
-              <path d="M0,160 Q75,150 150,155 T300,145 L300,200 L0,200 Z" fill="#d4a574" opacity="0.6"/>
-              <path d="M0,180 Q60,170 120,175 T240,165 T300,170 L300,200 L0,200 Z" fill="#8b7355" opacity="0.6"/>
-              <line x1="80" y1="20" x2="80" y2="200" stroke="#00d4ff" stroke-width="1" stroke-dasharray="4"/>
-              <line x1="220" y1="20" x2="220" y2="200" stroke="#00d4ff" stroke-width="1" stroke-dasharray="4"/>
-              <circle cx="80" cy="130" r="4" fill="#ef4444"/>
-              <circle cx="220" cy="115" r="4" fill="#ef4444"/>
-            </svg>
+          <div class="card-body" style="height:200px;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));position:relative;">
+            <canvas id="chartSection" style="width:100%;height:100%;" width="400" height="200"></canvas>
           </div>
         </div>
 
@@ -2942,24 +2901,10 @@ body::after {
         <div class="card fade-in-up stagger-5">
           <div class="card-header">
             <div class="card-title"><span class="icon">〰️</span> 等值线图</div>
-            <button class="btn btn-sm btn-primary">生成</button>
+            <button class="btn btn-sm btn-primary" onclick="generateChart('contour')">生成</button>
           </div>
-          <div class="card-body" style="height:200px;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));display:flex;align-items:center;justify-content:center;">
-            <svg width="180" height="180" viewBox="0 0 200 200">
-              <defs>
-                <radialGradient id="contourGrad">
-                  <stop offset="0%" stop-color="#ef4444" stop-opacity="0.8"/>
-                  <stop offset="50%" stop-color="#f59e0b" stop-opacity="0.6"/>
-                  <stop offset="100%" stop-color="#10b981" stop-opacity="0.3"/>
-                </radialGradient>
-              </defs>
-              <circle cx="100" cy="100" r="80" fill="url(#contourGrad)"/>
-              <ellipse cx="100" cy="100" rx="70" ry="60" fill="none" stroke="#fff" stroke-width="0.5" opacity="0.6"/>
-              <ellipse cx="100" cy="100" rx="55" ry="45" fill="none" stroke="#fff" stroke-width="0.5" opacity="0.6"/>
-              <ellipse cx="100" cy="100" rx="40" ry="30" fill="none" stroke="#fff" stroke-width="0.5" opacity="0.7"/>
-              <ellipse cx="100" cy="100" rx="25" ry="18" fill="none" stroke="#fff" stroke-width="0.8" opacity="0.8"/>
-              <ellipse cx="100" cy="100" rx="12" ry="8" fill="none" stroke="#fff" stroke-width="1" opacity="0.9"/>
-            </svg>
+          <div class="card-body" style="height:200px;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));position:relative;">
+            <canvas id="chartContour" style="width:100%;height:100%;" width="400" height="200"></canvas>
           </div>
         </div>
 
@@ -2967,24 +2912,10 @@ body::after {
         <div class="card fade-in-up stagger-6">
           <div class="card-header">
             <div class="card-title"><span class="icon">🌹</span> 节理玫瑰图</div>
-            <button class="btn btn-sm btn-primary">生成</button>
+            <button class="btn btn-sm btn-primary" onclick="generateChart('rose')">生成</button>
           </div>
-          <div class="card-body" style="height:200px;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));display:flex;align-items:center;justify-content:center;">
-            <svg width="180" height="180" viewBox="0 0 200 200">
-              <circle cx="100" cy="100" r="70" fill="none" stroke="#334155" stroke-width="0.5"/>
-              <circle cx="100" cy="100" r="50" fill="none" stroke="#334155" stroke-width="0.5"/>
-              <circle cx="100" cy="100" r="30" fill="none" stroke="#334155" stroke-width="0.5"/>
-              <line x1="100" y1="30" x2="100" y2="170" stroke="#334155" stroke-width="0.5"/>
-              <line x1="30" y1="100" x2="170" y2="100" stroke="#334155" stroke-width="0.5"/>
-              <path d="M100,100 L100,35 L110,100 Z" fill="#00d4ff" opacity="0.7"/>
-              <path d="M100,100 L155,60 L130,90 Z" fill="#7c3aed" opacity="0.7"/>
-              <path d="M100,100 L160,120 L125,105 Z" fill="#00d4ff" opacity="0.6"/>
-              <path d="M100,100 L140,160 L115,125 Z" fill="#f59e0b" opacity="0.7"/>
-              <path d="M100,100 L60,155 L85,125 Z" fill="#00d4ff" opacity="0.5"/>
-              <path d="M100,100 L40,120 L70,105 Z" fill="#7c3aed" opacity="0.6"/>
-              <path d="M100,100 L45,70 L75,85 Z" fill="#10b981" opacity="0.7"/>
-              <path d="M100,100 L80,40 L95,75 Z" fill="#f59e0b" opacity="0.6"/>
-            </svg>
+          <div class="card-body" style="height:200px;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));position:relative;">
+            <canvas id="chartRose" style="width:100%;height:100%;" width="400" height="200"></canvas>
           </div>
         </div>
 
@@ -2992,51 +2923,21 @@ body::after {
         <div class="card fade-in-up stagger-6">
           <div class="card-header">
             <div class="card-title"><span class="icon">🔺</span> Piper三线图</div>
-            <button class="btn btn-sm btn-primary">生成</button>
+            <button class="btn btn-sm btn-primary" onclick="generateChart('piper')">生成</button>
           </div>
-          <div class="card-body" style="height:200px;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));display:flex;align-items:center;justify-content:center;">
-            <svg width="200" height="180" viewBox="0 0 220 200">
-              <polygon points="60,160 10,160 35,80" fill="none" stroke="#475569" stroke-width="1"/>
-              <polygon points="160,160 210,160 185,80" fill="none" stroke="#475569" stroke-width="1"/>
-              <polygon points="60,160 160,160 110,60" fill="none" stroke="#475569" stroke-width="1"/>
-              <line x1="35" y1="100" x2="60" y2="130" stroke="#334155" stroke-width="0.5" stroke-dasharray="3"/>
-              <line x1="185" y1="100" x2="160" y2="130" stroke="#334155" stroke-width="0.5" stroke-dasharray="3"/>
-              <line x1="110" y1="100" x2="85" y2="140" stroke="#334155" stroke-width="0.5" stroke-dasharray="3"/>
-              <circle cx="45" cy="130" r="4" fill="#00d4ff"/>
-              <circle cx="170" cy="125" r="4" fill="#7c3aed"/>
-              <circle cx="110" cy="110" r="5" fill="#f59e0b"/>
-              <circle cx="38" cy="140" r="3" fill="#10b981"/>
-            </svg>
+          <div class="card-body" style="height:200px;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));position:relative;">
+            <canvas id="chartPiper" style="width:100%;height:100%;" width="400" height="200"></canvas>
           </div>
         </div>
 
-        <!-- 综合图表卡片 -->
+        <!-- 综合统计图卡片 -->
         <div class="card fade-in-up stagger-6">
           <div class="card-header">
-            <div class="card-title"><span class="icon">📊</span> 综合统计图</div>
-            <button class="btn btn-sm btn-primary">生成</button>
+            <div class="card-title"><span class="icon">📊</span> 品位分布图</div>
+            <button class="btn btn-sm btn-primary" onclick="generateChart('grade')">生成</button>
           </div>
-          <div class="card-body" style="height:200px;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));display:flex;flex-direction:column;justify-content:flex-end;padding:20px;">
-            <div style="display:flex;align-items:flex-end;gap:8px;height:140px;">
-              <div style="flex:1;height:60%;background:linear-gradient(180deg,#00d4ff,transparent);border-radius:4px 4px 0 0;position:relative;">
-                <div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:10px;color:#00d4ff;">32%</div>
-              </div>
-              <div style="flex:1;height:80%;background:linear-gradient(180deg,#7c3aed,transparent);border-radius:4px 4px 0 0;position:relative;">
-                <div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:10px;color:#7c3aed;">45%</div>
-              </div>
-              <div style="flex:1;height:45%;background:linear-gradient(180deg,#10b981,transparent);border-radius:4px 4px 0 0;position:relative;">
-                <div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:10px;color:#10b981;">25%</div>
-              </div>
-              <div style="flex:1;height:70%;background:linear-gradient(180deg,#f59e0b,transparent);border-radius:4px 4px 0 0;position:relative;">
-                <div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:10px;color:#f59e0b;">38%</div>
-              </div>
-              <div style="flex:1;height:55%;background:linear-gradient(180deg,#ef4444,transparent);border-radius:4px 4px 0 0;position:relative;">
-                <div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:10px;color:#ef4444;">30%</div>
-              </div>
-            </div>
-            <div style="display:flex;gap:8px;margin-top:8px;font-size:10px;color:var(--text-400);justify-content:center;">
-              <span>砂岩</span><span>灰岩</span><span>页岩</span><span>花岗岩</span><span>片麻岩</span>
-            </div>
+          <div class="card-body" style="height:200px;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));position:relative;">
+            <canvas id="chartGrade" style="width:100%;height:100%;" width="400" height="200"></canvas>
           </div>
         </div>
       </div>
@@ -3968,9 +3869,11 @@ function switchView(viewName, navItem) {
           threeRenderer.setSize(w, h);
         }
       }
-      // 如果已加载示例数据，更新钻孔
+      // 如果已加载示例数据，更新钻孔和矿体
       if (sampleDataLoaded && sampleDrillData.length > 0) {
         addSampleDrillsTo3D();
+        addSampleOreBodiesTo3D();
+        addSampleSectionsTo3D();
       }
     }, 200);
   }
@@ -3981,6 +3884,15 @@ function switchView(viewName, navItem) {
       initLeafletMap();
       if (leafletMap) leafletMap.invalidateSize();
     }, 100);
+  }
+
+  // 切换到可视化视图时自动生成全部图表
+  if (viewName === 'viz') {
+    setTimeout(function() {
+      ['column', 'section', 'contour', 'rose', 'piper', 'grade'].forEach(function(t, i) {
+        setTimeout(function() { generateChart(t); }, i * 150);
+      });
+    }, 200);
   }
 
   showToast('已切换到 ' + (navItem ? navItem.querySelector('.nav-label').textContent : viewName));
@@ -4050,23 +3962,14 @@ function showToast(message, type) {
 // Three.js 3D 地质场景
 // ============================================================
 var threeScene = null, threeCamera = null, threeRenderer = null, threeControls = null;
-var threeAnimId = null, stratumMeshes = [], oreMesh = null, drillHoles = [];
+var threeAnimId = null, stratumMeshes = [], oreMeshes = [], drillHoles = [];
+var faultMeshes = [], sectionMeshes = [];
 var sectionPlane = null, measureLine = null;
 
 function init3DScene() {
   if (typeof THREE === 'undefined') {
-    console.error('[3D] Three.js 未加载，尝试重新加载...');
-    // 尝试从备用 CDN 加载
-    var s1 = document.createElement('script');
-    s1.src = 'https://unpkg.com/three@0.128.0/build/three.min.js';
-    s1.onload = function() {
-      console.log('[3D] Three.js 从备用 CDN 加载成功');
-      var s2 = document.createElement('script');
-      s2.src = 'https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js';
-      s2.onload = function() { init3DSceneInternal(); };
-      document.head.appendChild(s2);
-    };
-    document.head.appendChild(s1);
+    console.error('[3D] Three.js 未加载，本地文件缺失');
+    showToast('Three.js 本地库文件未找到，请检查文件完整性', 'warning');
     return;
   }
   init3DSceneInternal();
@@ -4170,17 +4073,75 @@ function init3DSceneInternal() {
     threeScene.add(line);
   });
 
-  // === 矿体（金色不规则体） ===
-  var oreGeo = new THREE.SphereGeometry(35, 32, 24);
-  oreGeo.scale(1.8, 0.6, 1.2);
-  var oreMat = new THREE.MeshPhongMaterial({
-    color: 0xffd700, emissive: 0x886600, emissiveIntensity: 0.3,
-    shininess: 80, transparent: true, opacity: 0.9
+  // === 矿体（3个，金色/银色/铜色不规则体） ===
+  var oreBodiesInit = [
+    { name: 'I号矿体', type: '铜矿', color: 0xffd700, emissive: 0x886600, pos: [10, -10, -5], scale: [1.8, 0.6, 1.2], radius: 35, status: '已圈定' },
+    { name: 'II号矿体', type: '铅锌矿', color: 0xc0c0c0, emissive: 0x555555, pos: [-50, -30, 30], scale: [1.2, 0.5, 0.8], radius: 22, status: '已圈定' },
+    { name: 'III号矿体', type: '铁矿', color: 0xb87333, emissive: 0x442200, pos: [60, -20, -40], scale: [0.8, 0.4, 0.6], radius: 15, status: '推测' }
+  ];
+
+  oreBodiesInit.forEach(function(o) {
+    var og = new THREE.SphereGeometry(o.radius, 32, 24);
+    og.scale(o.scale[0], o.scale[1], o.scale[2]);
+    var om = new THREE.MeshPhongMaterial({
+      color: o.color, emissive: o.emissive, emissiveIntensity: 0.3,
+      shininess: 80, transparent: true, opacity: o.status === '推测' ? 0.6 : 0.88
+    });
+    var mesh = new THREE.Mesh(og, om);
+    mesh.position.set(o.pos[0], o.pos[1], o.pos[2]);
+    mesh.userData = { name: o.name, type: 'ore', oreType: o.type, status: o.status };
+    threeScene.add(mesh);
+    oreMeshes.push(mesh);
+
+    // 矿体边线轮廓
+    var oreEdges = new THREE.EdgesGeometry(og);
+    var oreLineMat = new THREE.LineBasicMaterial({ color: o.color, opacity: 0.5, transparent: true });
+    var oreLine = new THREE.LineSegments(oreEdges, oreLineMat);
+    oreLine.position.copy(mesh.position);
+    oreLine.scale.copy(mesh.scale);
+    threeScene.add(oreLine);
+
+    // 矿体标签光柱
+    var beamGeo = new THREE.CylinderGeometry(0.5, 0.5, 80, 8);
+    var beamMat = new THREE.MeshBasicMaterial({ color: o.color, transparent: true, opacity: 0.15 });
+    var beam = new THREE.Mesh(beamGeo, beamMat);
+    beam.position.set(o.pos[0], o.pos[1] + 40, o.pos[2]);
+    threeScene.add(beam);
   });
-  oreMesh = new THREE.Mesh(oreGeo, oreMat);
-  oreMesh.position.set(10, -10, -5);
-  oreMesh.userData = { name: 'I号矿体', type: 'ore' };
-  threeScene.add(oreMesh);
+
+  // === 断层构造（2条断层破碎带） ===
+  var faultsInit = [
+    { name: 'F1断层', dir: 'NE45°', color: 0xff4444, p1: [-120, -45, -100], p2: [80, 60, 90], width: 4 },
+    { name: 'F2断层', dir: 'NW30°', color: 0xff6b35, p1: [100, -45, -80], p2: [-80, 40, 100], width: 3 }
+  ];
+
+  faultsInit.forEach(function(f) {
+    var pts = [
+      new THREE.Vector3(f.p1[0], f.p1[1], f.p1[2]),
+      new THREE.Vector3(f.p2[0], f.p2[1], f.p2[2])
+    ];
+    // 断层破碎带（半透明红色板）
+    var mid = new THREE.Vector3().addVectors(pts[0], pts[1]).multiplyScalar(0.5);
+    var len = pts[0].distanceTo(pts[1]);
+    var fGeo = new THREE.BoxGeometry(len, 70, f.width);
+    var fMat = new THREE.MeshPhongMaterial({
+      color: f.color, transparent: true, opacity: 0.2,
+      shininess: 0, side: THREE.DoubleSide
+    });
+    var fMesh = new THREE.Mesh(fGeo, fMat);
+    fMesh.position.copy(mid);
+    fMesh.lookAt(pts[1]);
+    fMesh.userData = { name: f.name, type: 'fault', direction: f.dir };
+    threeScene.add(fMesh);
+    faultMeshes.push(fMesh);
+
+    // 断层线（虚线）
+    var fLineGeo = new THREE.BufferGeometry().setFromPoints(pts);
+    var fLineMat = new THREE.LineDashedMaterial({ color: f.color, dashSize: 8, gapSize: 4, linewidth: 2 });
+    var fLine = new THREE.Line(fLineGeo, fLineMat);
+    fLine.computeLineDistances();
+    threeScene.add(fLine);
+  });
 
   // === 默认钻孔 ===
   var drillPositions = [
@@ -4240,10 +4201,12 @@ function init3DSceneInternal() {
   function animate() {
     threeAnimId = requestAnimationFrame(animate);
     if (threeControls) threeControls.update();
-    // 矿体微旋转
-    if (oreMesh) oreMesh.rotation.y += 0.003;
-    // 标记球脉冲
     var t = Date.now() * 0.002;
+    // 矿体微旋转
+    oreMeshes.forEach(function(m, i) { m.rotation.y += 0.003 * (i % 2 === 0 ? 1 : -1); });
+    // 断层微闪烁
+    faultMeshes.forEach(function(m) { m.material.opacity = 0.15 + Math.sin(t) * 0.05; });
+    // 标记球脉冲
     drillHoles.forEach(function(b, i) {
       var s = 1 + Math.sin(t + i * 0.5) * 0.15;
       b.scale.set(s, s, s);
@@ -4495,11 +4458,8 @@ async function ensureSupabase() {
   if (supabaseClient) return true;
   // 尝试初始化
   if (initSupabase()) return true;
-  // SDK 可能还在加载，最多等待 10 秒
-  for (var i = 0; i < 20; i++) {
-    await new Promise(function(r) { setTimeout(r, 500); });
-    if (initSupabase()) return true;
-  }
+  // SDK 未加载（本地部署无CDN），不再等待，直接返回false走游客模式
+  console.warn('[Auth] Supabase SDK 未加载，使用游客模式');
   return false;
 }
 
@@ -4885,7 +4845,8 @@ function toggleSection() {
   stratumMeshes.forEach(function(mesh, i) {
     mesh.material.opacity = sectionActive ? (i < 3 ? 0.15 : 0.85) : 0.75;
   });
-  if (oreMesh) oreMesh.material.opacity = sectionActive ? 1.0 : 0.9;
+  if (oreMeshes.length) oreMeshes.forEach(function(m) { m.material.opacity = sectionActive ? 1.0 : 0.88; });
+  if (faultMeshes.length) faultMeshes.forEach(function(m) { m.material.opacity = sectionActive ? 0.35 : 0.2; });
   showToast(sectionActive ? '剖切模式已开启 - 上部地层已半透明' : '剖切模式已关闭');
 }
 
@@ -5123,10 +5084,305 @@ function showDataModal(title, bodyHtml) {
 
 // 可视化图表生成
 function generateChart(type) {
-  showToast('正在生成' + type + '...', 'info');
+  var canvases = {
+    column: 'chartColumn', section: 'chartSection', contour: 'chartContour',
+    rose: 'chartRose', piper: 'chartPiper', grade: 'chartGrade'
+  };
+  var id = canvases[type];
+  if (!id) { showToast('未知图表类型: ' + type, 'warning'); return; }
+  var canvas = document.getElementById(id);
+  if (!canvas) { showToast('画布未找到', 'warning'); return; }
+  var ctx = canvas.getContext('2d');
+  var w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+
+  // 提示文字
+  ctx.fillStyle = '#64748b';
+  ctx.font = '10px sans-serif';
+  ctx.textAlign = 'center';
+  showToast('正在生成' + type + '图...', 'info');
+
+  if (type === 'column') {
+    // 钻孔柱状图 - 5个钻孔的地层柱
+    var drills = [
+      { id: 'ZK001', layers: [['#8b6f47',12],['#d4a574',14],['#e88c3a',18],['#b8d670',16],['#6bb8e8',20]] },
+      { id: 'ZK002', layers: [['#8b6f47',10],['#d4a574',12],['#e88c3a',22],['#b8d670',14],['#6bb8e8',18],['#50c878',16]] },
+      { id: 'ZK003', layers: [['#8b6f47',14],['#d4a574',16],['#e88c3a',15],['#b8d670',18],['#6bb8e8',20]] },
+      { id: 'ZK004', layers: [['#8b6f47',8],['#d4a574',14],['#e88c3a',20],['#b8d670',22],['#6bb8e8',24],['#50c878',18],['#b88ce0',16]] },
+      { id: 'ZK005', layers: [['#8b6f47',12],['#d4a574',13],['#e88c3a',17],['#b8d670',15],['#6bb8e8',19]] }
+    ];
+    var colW = 36, gap = (w - drills.length * colW) / (drills.length + 1);
+    var baseY = h - 20;
+    drills.forEach(function(d, di) {
+      var x = gap + di * (colW + gap);
+      var y = baseY;
+      d.layers.forEach(function(l) {
+        var lh = l[1] * 1.0;
+        ctx.fillStyle = l[0];
+        ctx.fillRect(x, y - lh, colW, lh);
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(x, y - lh, colW, lh);
+        y -= lh;
+      });
+      // 钻孔编号
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '9px sans-serif';
+      ctx.fillText(d.id, x + colW/2, baseY + 12);
+    });
+    // 深度轴
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(gap/2, 10);
+    ctx.lineTo(gap/2, baseY);
+    ctx.stroke();
+    ctx.fillStyle = '#64748b';
+    ctx.font = '8px sans-serif';
+    ctx.textAlign = 'right';
+    for (var d = 0; d <= 100; d += 25) {
+      var dy = baseY - d * 1.0;
+      ctx.fillText(d + 'm', gap/2 - 2, dy + 3);
+    }
+
+  } else if (type === 'section') {
+    // 地质剖面图
+    var layers = [
+      { color: '#8b6f47', y: 170, name: '表土' },
+      { color: '#d4a574', y: 155, name: '砂砾石' },
+      { color: '#e88c3a', y: 135, name: '砂岩' },
+      { color: '#b8d670', y: 110, name: '泥岩' },
+      { color: '#6bb8e8', y: 80, name: '灰岩' },
+      { color: '#50c878', y: 50, name: '页岩' }
+    ];
+    layers.forEach(function(l, i) {
+      var nextY = i < layers.length - 1 ? layers[i+1].y : 0;
+      ctx.fillStyle = l.color;
+      ctx.globalAlpha = 0.7;
+      ctx.beginPath();
+      ctx.moveTo(0, l.y);
+      for (var x = 0; x <= w; x += 20) {
+        ctx.lineTo(x, l.y + Math.sin(x * 0.03 + i) * 5);
+      }
+      ctx.lineTo(w, nextY);
+      ctx.lineTo(0, nextY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    });
+    // 钻孔线
+    var drillX = [80, 180, 280];
+    drillX.forEach(function(dx) {
+      ctx.strokeStyle = '#00d4ff';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.moveTo(dx, 10);
+      ctx.lineTo(dx, h - 10);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      // 钻孔点
+      ctx.fillStyle = '#ef4444';
+      ctx.beginPath();
+      ctx.arc(dx, 120, 3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    // 矿体
+    ctx.fillStyle = '#ffd700';
+    ctx.globalAlpha = 0.6;
+    ctx.beginPath();
+    ctx.ellipse(150, 100, 50, 15, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+  } else if (type === 'contour') {
+    // 等值线图 - 同心椭圆
+    var cx = w/2, cy = h/2;
+    // 渐变背景
+    var grad = ctx.createRadialGradient(cx, cy, 5, cx, cy, 100);
+    grad.addColorStop(0, 'rgba(239,68,68,0.5)');
+    grad.addColorStop(0.5, 'rgba(245,158,11,0.3)');
+    grad.addColorStop(1, 'rgba(16,185,129,0.1)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+    // 等值线
+    var contours = [
+      { rx: 90, ry: 70, val: '0.5%' },
+      { rx: 70, ry: 55, val: '1.0%' },
+      { rx: 50, ry: 40, val: '1.5%' },
+      { rx: 32, ry: 25, val: '2.0%' },
+      { rx: 16, ry: 12, val: '2.5%' }
+    ];
+    contours.forEach(function(c, i) {
+      ctx.strokeStyle = i < 2 ? '#ef4444' : i < 4 ? '#f59e0b' : '#10b981';
+      ctx.lineWidth = 0.8 + i * 0.2;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, c.rx, c.ry, 0, 0, Math.PI * 2);
+      ctx.stroke();
+      // 标注
+      ctx.fillStyle = ctx.strokeStyle;
+      ctx.font = '8px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(c.val, cx + c.rx + 2, cy);
+    });
+    // 中心点
+    ctx.fillStyle = '#ef4444';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+    ctx.fill();
+
+  } else if (type === 'rose') {
+    // 节理玫瑰图
+    var rcx = w/2, rcy = h/2;
+    var maxR = 75;
+    // 同心圆
+    [25, 50, 75].forEach(function(r) {
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath();
+      ctx.arc(rcx, rcy, r, 0, Math.PI * 2);
+      ctx.stroke();
+    });
+    // 十字线
+    ctx.beginPath();
+    ctx.moveTo(rcx, rcy - maxR); ctx.lineTo(rcx, rcy + maxR);
+    ctx.moveTo(rcx - maxR, rcy); ctx.lineTo(rcx + maxR, rcy);
+    ctx.stroke();
+    // 方位数据
+    var roseData = [
+      { angle: 0,   len: 55, color: '#00d4ff' },
+      { angle: 45,  len: 35, color: '#7c3aed' },
+      { angle: 90,  len: 70, color: '#00d4ff' },
+      { angle: 135, len: 40, color: '#f59e0b' },
+      { angle: 180, len: 50, color: '#00d4ff' },
+      { angle: 225, len: 60, color: '#7c3aed' },
+      { angle: 270, len: 45, color: '#10b981' },
+      { angle: 315, len: 30, color: '#f59e0b' }
+    ];
+    roseData.forEach(function(d) {
+      var rad = (d.angle - 90) * Math.PI / 180;
+      var spread = 22.5 * Math.PI / 180;
+      var x1 = rcx + Math.cos(rad - spread) * d.len;
+      var y1 = rcy + Math.sin(rad - spread) * d.len;
+      var x2 = rcx + Math.cos(rad + spread) * d.len;
+      var y2 = rcy + Math.sin(rad + spread) * d.len;
+      ctx.fillStyle = d.color;
+      ctx.globalAlpha = 0.6;
+      ctx.beginPath();
+      ctx.moveTo(rcx, rcy);
+      ctx.arc(rcx, rcy, d.len, rad - spread, rad + spread);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    });
+    // N标记
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('N', rcx, rcy - maxR - 4);
+
+  } else if (type === 'piper') {
+    // Piper三线图
+    var tl = { x: 60, y: 160 }, tr = { x: 160, y: 160 }, tc = { x: 110, y: 60 };
+    var bl = { x: 10, y: 160 }, br = { x: 210, y: 160 };
+    // 三个菱形
+    function drawTriangle(p1, p2, p3) {
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.lineTo(p3.x, p3.y);
+      ctx.closePath();
+      ctx.stroke();
+    }
+    drawTriangle(bl, tl, { x: 35, y: 80 });
+    drawTriangle(tr, br, { x: 185, y: 80 });
+    drawTriangle(tl, tr, tc);
+    // 内部网格
+    ctx.strokeStyle = '#334155';
+    ctx.lineWidth = 0.3;
+    ctx.setLineDash([2, 3]);
+    for (var i = 1; i < 4; i++) {
+      ctx.beginPath();
+      ctx.moveTo(35 + i*6, 80 + i*20); ctx.lineTo(60 + i*6, 160);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(185 - i*6, 80 + i*20); ctx.lineTo(160 - i*6, 160);
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    // 数据点
+    var piperPoints = [
+      { x: 45, y: 130, color: '#00d4ff' },
+      { x: 170, y: 125, color: '#7c3aed' },
+      { x: 110, y: 110, color: '#f59e0b' },
+      { x: 38, y: 140, color: '#10b981' },
+      { x: 175, y: 140, color: '#ef4444' }
+    ];
+    piperPoints.forEach(function(p) {
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    // 标注
+    ctx.fillStyle = '#64748b';
+    ctx.font = '8px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Ca²⁺', 20, 175);
+    ctx.fillText('Mg²⁺', 60, 175);
+    ctx.fillText('Na⁺+K⁺', 110, 55);
+    ctx.fillText('Cl⁻', 200, 175);
+    ctx.fillText('SO₄²⁻', 160, 175);
+    ctx.fillText('HCO₃⁻', 110, 175);
+
+  } else if (type === 'grade') {
+    // 品位分布直方图
+    var grades = [
+      { range: '0-0.5', count: 3, color: '#10b981' },
+      { range: '0.5-1.0', count: 5, color: '#22c55e' },
+      { range: '1.0-1.5', count: 8, color: '#f59e0b' },
+      { range: '1.5-2.0', count: 12, color: '#f97316' },
+      { range: '2.0-2.5', count: 7, color: '#ef4444' },
+      { range: '>2.5', count: 3, color: '#dc2626' }
+    ];
+    var barW = (w - 40) / grades.length;
+    var maxCount = 12;
+    var chartH = h - 35;
+    grades.forEach(function(g, i) {
+      var bh = (g.count / maxCount) * chartH;
+      var bx = 20 + i * barW;
+      var by = h - 25 - bh;
+      // 渐变柱
+      var bg = ctx.createLinearGradient(bx, by, bx, by + bh);
+      bg.addColorStop(0, g.color);
+      bg.addColorStop(1, g.color + '33');
+      ctx.fillStyle = bg;
+      ctx.fillRect(bx + 4, by, barW - 8, bh);
+      // 数值
+      ctx.fillStyle = g.color;
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(g.count, bx + barW/2, by - 4);
+      // 标签
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '8px sans-serif';
+      ctx.fillText(g.range, bx + barW/2, h - 10);
+    });
+    // Y轴
+    ctx.strokeStyle = '#475569';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(15, 10); ctx.lineTo(15, h - 25);
+    ctx.stroke();
+    ctx.fillStyle = '#64748b';
+    ctx.font = '8px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText('频数', 12, 8);
+  }
+
   setTimeout(function() {
-    showToast(type + '生成完成', 'success');
-  }, 1000);
+    showToast(type + '图生成完成', 'success');
+  }, 500);
 }
 
 // 剖面操作
@@ -5567,6 +5823,8 @@ function loadSampleData() {
       // 再延迟一下确保canvas尺寸正确
       setTimeout(function() {
         addSampleDrillsTo3D();
+        addSampleOreBodiesTo3D();
+        addSampleSectionsTo3D();
         // 强制调整尺寸
         if (threeRenderer && threeCamera) {
           var canvas = document.getElementById('threeCanvas');
@@ -5698,6 +5956,101 @@ function addSampleDrillsTo3D() {
       threeScene.add(goldRing);
     }
   });
+}
+
+// 向3D场景添加3个矿体
+function addSampleOreBodiesTo3D() {
+  if (!threeScene || typeof THREE === 'undefined') return;
+
+  // 清除旧矿体
+  oreMeshes.forEach(function(m) { threeScene.remove(m); });
+  oreMeshes = [];
+
+  var oreColors = {
+    '铜矿':   { color: 0xffd700, emissive: 0x886600 },
+    '铅锌矿': { color: 0xc0c0c0, emissive: 0x555555 },
+    '铁矿':   { color: 0xb87333, emissive: 0x442200 }
+  };
+
+  sampleOreData.forEach(function(o) {
+    var c = oreColors[o.type] || oreColors['铜矿'];
+    // 根据体积计算半径
+    var r = Math.max(8, Math.cbrt(o.volume / (Math.PI * 4/3)) * 0.3);
+    var og = new THREE.SphereGeometry(r, 32, 24);
+    // 根据形态调整比例
+    if (o.shape === '透镜状') og.scale(1.6, 0.5, 1.1);
+    else if (o.shape === '层状') og.scale(1.4, 0.3, 1.0);
+    else if (o.shape === '脉状') og.scale(2.0, 0.4, 0.5);
+
+    var om = new THREE.MeshPhongMaterial({
+      color: c.color, emissive: c.emissive, emissiveIntensity: 0.35,
+      shininess: 80, transparent: true,
+      opacity: o.status === '推测' ? 0.55 : 0.88
+    });
+    var mesh = new THREE.Mesh(og, om);
+    mesh.position.set(o.center.x, o.center.y, o.center.z);
+    mesh.userData = { name: o.name, type: 'ore', oreType: o.type, status: o.status, grade: o.grade, tonnage: o.tonnage };
+    threeScene.add(mesh);
+    oreMeshes.push(mesh);
+
+    // 矿体轮廓线
+    var oreEdges = new THREE.EdgesGeometry(og);
+    var oreLineMat = new THREE.LineBasicMaterial({ color: c.color, opacity: 0.6, transparent: true });
+    var oreLine = new THREE.LineSegments(oreEdges, oreLineMat);
+    oreLine.position.copy(mesh.position);
+    oreLine.scale.copy(mesh.scale);
+    threeScene.add(oreLine);
+
+    // 矿体光柱标签
+    var beamGeo = new THREE.CylinderGeometry(0.6, 0.6, 90, 8);
+    var beamMat = new THREE.MeshBasicMaterial({ color: c.color, transparent: true, opacity: 0.18 });
+    var beam = new THREE.Mesh(beamGeo, beamMat);
+    beam.position.set(o.center.x, o.center.y + 45, o.center.z);
+    threeScene.add(beam);
+  });
+
+  console.log('[3D] 矿体模型已加载:', oreMeshes.length, '个');
+}
+
+// 向3D场景添加5条剖面线
+function addSampleSectionsTo3D() {
+  if (!threeScene || typeof THREE === 'undefined') return;
+
+  // 清除旧剖面
+  sectionMeshes.forEach(function(m) { threeScene.remove(m); });
+  sectionMeshes = [];
+
+  var sectionLines = [
+    { name: "A-A'剖面", p1: [-100, 85, -80], p2: [100, 85, 80], color: 0x00d4ff },
+    { name: "B-B'剖面", p1: [-90, 85, 90], p2: [90, 85, -90], color: 0x7c3aed },
+    { name: "C-C'剖面", p1: [-110, 85, 0], p2: [110, 85, 0], color: 0x10b981 },
+    { name: "D-D'剖面", p1: [0, 85, -100], p2: [0, 85, 100], color: 0xf59e0b },
+    { name: "E-E'剖面", p1: [-60, 85, -60], p2: [60, 85, 60], color: 0xef4444 }
+  ];
+
+  sectionLines.forEach(function(s) {
+    var pts = [
+      new THREE.Vector3(s.p1[0], s.p1[1], s.p1[2]),
+      new THREE.Vector3(s.p2[0], s.p2[1], s.p2[2])
+    ];
+    var geo = new THREE.BufferGeometry().setFromPoints(pts);
+    var mat = new THREE.LineBasicMaterial({ color: s.color, linewidth: 2 });
+    var line = new THREE.Line(geo, mat);
+    line.userData = { name: s.name, type: 'section' };
+    threeScene.add(line);
+    sectionMeshes.push(line);
+
+    // 剖面端点发光球
+    pts.forEach(function(p) {
+      var eg = new THREE.SphereGeometry(3, 12, 8);
+      var em = new THREE.MeshBasicMaterial({ color: s.color });
+      var eb = new THREE.Mesh(eg, em);
+      eb.position.copy(p);
+      threeScene.add(eb);
+    });
+  });
+
+  console.log('[3D] 剖面线已加载:', sectionMeshes.length, '条');
 }
 
 // 导出示例CSV
