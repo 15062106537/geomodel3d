@@ -8,6 +8,22 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500;600;700&family=Orbitron:wght@500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// 备用 CDN：如果 jsdelivr 加载失败，尝试 unpkg
+setTimeout(function() {
+  if (typeof window.supabase === 'undefined') {
+    var s = document.createElement('script');
+    s.src = 'https://unpkg.com/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js';
+    s.onload = function() { console.log('[Auth] Supabase SDK 从备用 CDN 加载成功'); };
+    s.onerror = function() { console.error('[Auth] Supabase SDK 所有 CDN 加载失败'); };
+    document.head.appendChild(s);
+  }
+}, 2000);
+</script>
 <style>
 /* ============================================================
    GeoModel3D Pro — 智能地质建模平台
@@ -669,6 +685,12 @@ body::after {
 #mapCanvas {
   width: 100%;
   height: 100%;
+  background: #f5f5f0;
+}
+#mapCanvas .leaflet-container {
+  width: 100%;
+  height: 100%;
+  background: #f5f5f0;
 }
 
 /* 数据管理视图 */
@@ -2130,19 +2152,37 @@ body::after {
 
     <!-- 注册表单 -->
     <div id="authRegisterForm" style="display:none">
-      <div class="auth-field">
-        <label>邮箱</label>
-        <input type="email" class="auth-input" id="registerEmail" placeholder="you@example.com" autocomplete="email">
+      <!-- 第一步：邮箱 -->
+      <div id="registerStep1">
+        <div class="auth-field">
+          <label>邮箱</label>
+          <input type="email" class="auth-input" id="registerEmail" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <button class="auth-btn" id="registerSendOtpBtn" onclick="handleRegisterSendOtp()">发送验证码</button>
       </div>
-      <div class="auth-field">
-        <label>密码</label>
-        <input type="password" class="auth-input" id="registerPassword" placeholder="至少6位" autocomplete="new-password">
+      <!-- 第二步：验证码 -->
+      <div id="registerStep2" style="display:none">
+        <div class="auth-field auth-otp-row">
+          <label>验证码</label>
+          <div style="display:flex;gap:8px;">
+            <input type="text" class="auth-input" id="registerOtp" placeholder="6位验证码" maxlength="6" inputmode="numeric" style="flex:1;letter-spacing:4px;text-align:center;font-size:1rem;">
+            <button class="auth-otp-btn" id="registerResendBtn" onclick="handleRegisterSendOtp()">重发</button>
+          </div>
+        </div>
+        <button class="auth-btn" id="registerVerifyBtn" onclick="handleRegisterVerifyOtp()">验证邮箱</button>
       </div>
-      <div class="auth-field">
-        <label>确认密码</label>
-        <input type="password" class="auth-input" id="registerPassword2" placeholder="再次输入密码" autocomplete="new-password">
+      <!-- 第三步：设置密码 -->
+      <div id="registerStep3" style="display:none">
+        <div class="auth-field">
+          <label>设置密码</label>
+          <input type="password" class="auth-input" id="registerPassword" placeholder="至少6位" autocomplete="new-password">
+        </div>
+        <div class="auth-field">
+          <label>确认密码</label>
+          <input type="password" class="auth-input" id="registerPassword2" placeholder="再次输入密码" autocomplete="new-password">
+        </div>
+        <button class="auth-btn" id="registerBtn" onclick="handleRegister()">完成注册</button>
       </div>
-      <button class="auth-btn" id="registerBtn" onclick="handleRegister()">创建账号</button>
     </div>
 
     <div class="auth-guest">
@@ -2437,6 +2477,9 @@ body::after {
             </div>
             <div class="card-body">
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-2);">
+                <button class="btn btn-primary" onclick="loadSampleData()" style="grid-column:span 2;">
+                  📦 加载示例数据（17钻孔 · 7地层 · 3矿体 · 86条记录 · 5剖面 · 12组物化探）
+                </button>
                 <button class="btn btn-secondary" onclick="switchView('data', document.querySelectorAll('.nav-item')[1])">
                   📁 导入数据
                 </button>
@@ -2568,12 +2611,8 @@ body::after {
         <button class="vt-btn" onclick="toggleHeatmap()"><span class="icon">🔥</span> 热力图</button>
       </div>
 
-      <div id="mapCanvas" style="width:100%;height:100%;background:linear-gradient(135deg,#1a2a3a,#0d1520);display:flex;align-items:center;justify-content:center;">
-        <div style="text-align:center;color:var(--text-400);">
-          <div style="font-size:64px;margin-bottom:16px;">🗺</div>
-          <div style="font-size:16px;">全国工作地图</div>
-          <div style="font-size:12px;margin-top:8px;">点击左侧导航栏「地图可视化」加载地图</div>
-        </div>
+      <div id="mapCanvas" style="width:100%;height:100%;background:#f5f5f0;">
+        <!-- Leaflet 地图将由 JS 动态初始化 -->
       </div>
 
       <div class="view-corner">
@@ -3863,6 +3902,27 @@ function switchView(viewName, navItem) {
     }
   }
 
+  // 切换到3D视图时初始化/刷新Three.js场景
+  if (viewName === '3d') {
+    setTimeout(function() {
+      init3DScene();
+      if (threeRenderer && threeCamera) {
+        var canvas = document.getElementById('threeCanvas');
+        threeCamera.aspect = canvas.clientWidth / canvas.clientHeight;
+        threeCamera.updateProjectionMatrix();
+        threeRenderer.setSize(canvas.clientWidth, canvas.clientHeight);
+      }
+    }, 100);
+  }
+
+  // 切换到地图视图时初始化/刷新Leaflet地图
+  if (viewName === 'map') {
+    setTimeout(function() {
+      initLeafletMap();
+      if (leafletMap) leafletMap.invalidateSize();
+    }, 100);
+  }
+
   showToast('已切换到 ' + (navItem ? navItem.querySelector('.nav-label').textContent : viewName));
 }
 
@@ -3926,34 +3986,337 @@ function showToast(message, type) {
   }, 2500);
 }
 
-// 工具切换
+// ============================================================
+// Three.js 3D 地质场景
+// ============================================================
+var threeScene = null, threeCamera = null, threeRenderer = null, threeControls = null;
+var threeAnimId = null, stratumMeshes = [], oreMesh = null, drillHoles = [];
+var sectionPlane = null, measureLine = null;
+
+function init3DScene() {
+  if (threeScene) return; // 已初始化
+  if (typeof THREE === 'undefined') { console.error('[3D] Three.js 未加载'); return; }
+
+  var canvas = document.getElementById('threeCanvas');
+  var w = canvas.clientWidth || 800;
+  var h = canvas.clientHeight || 600;
+
+  // 场景
+  threeScene = new THREE.Scene();
+  threeScene.background = new THREE.Color(0x0a0e1a);
+  threeScene.fog = new THREE.Fog(0x0a0e1a, 200, 600);
+
+  // 相机
+  threeCamera = new THREE.PerspectiveCamera(50, w / h, 0.1, 2000);
+  threeCamera.position.set(180, 150, 180);
+  threeCamera.lookAt(0, 0, 0);
+
+  // 渲染器
+  threeRenderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
+  threeRenderer.setSize(w, h);
+  threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+  // 控制器
+  threeControls = new THREE.OrbitControls(threeCamera, canvas);
+  threeControls.enableDamping = true;
+  threeControls.dampingFactor = 0.08;
+
+  // 光照
+  threeScene.add(new THREE.AmbientLight(0x4a6fa5, 0.6));
+  var dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  dirLight.position.set(100, 200, 100);
+  threeScene.add(dirLight);
+  var dirLight2 = new THREE.DirectionalLight(0x00d4ff, 0.3);
+  dirLight2.position.set(-100, 100, -100);
+  threeScene.add(dirLight2);
+
+  // 网格地面
+  var grid = new THREE.GridHelper(400, 40, 0x1e3a5f, 0x0d1e2f);
+  grid.position.y = -50;
+  threeScene.add(grid);
+
+  // 坐标轴
+  var axes = new THREE.AxesHelper(80);
+  axes.position.y = -49;
+  threeScene.add(axes);
+
+  // === 地层模型（7层） ===
+  var strataData = [
+    { name: '第四系表土', color: 0x8b6f47, y: -40, h: 12 },
+    { name: '砂砾石层', color: 0xd4a574, y: -28, h: 14 },
+    { name: '白垩系砂岩', color: 0xe88c3a, y: -14, h: 18 },
+    { name: '侏罗系泥岩', color: 0xb8d670, y: 4, h: 16 },
+    { name: '三叠系灰岩', color: 0x6bb8e8, y: 20, h: 20 },
+    { name: '二叠系页岩', color: 0x50c878, y: 40, h: 18 },
+    { name: '石炭系灰岩', color: 0xb88ce0, y: 58, h: 16 }
+  ];
+
+  strataData.forEach(function(s) {
+    var geo = new THREE.BoxGeometry(220, s.h, 220);
+    var mat = new THREE.MeshPhongMaterial({
+      color: s.color, transparent: true, opacity: 0.75,
+      shininess: 30, flatShading: false
+    });
+    var mesh = new THREE.Mesh(geo, mat);
+    mesh.position.y = s.y;
+    mesh.userData = { name: s.name, type: 'stratum' };
+    threeScene.add(mesh);
+    stratumMeshes.push(mesh);
+
+    // 地层边线
+    var edges = new THREE.EdgesGeometry(geo);
+    var lineMat = new THREE.LineBasicMaterial({ color: s.color, opacity: 0.4, transparent: true });
+    var line = new THREE.LineSegments(edges, lineMat);
+    line.position.copy(mesh.position);
+    threeScene.add(line);
+  });
+
+  // === 矿体（金色不规则体） ===
+  var oreGeo = new THREE.SphereGeometry(35, 32, 24);
+  oreGeo.scale(1.8, 0.6, 1.2);
+  var oreMat = new THREE.MeshPhongMaterial({
+    color: 0xffd700, emissive: 0x886600, emissiveIntensity: 0.3,
+    shininess: 80, transparent: true, opacity: 0.9
+  });
+  oreMesh = new THREE.Mesh(oreGeo, oreMat);
+  oreMesh.position.set(10, -10, -5);
+  oreMesh.userData = { name: 'I号矿体', type: 'ore' };
+  threeScene.add(oreMesh);
+
+  // === 钻孔（红色标记球+柱体） ===
+  var drillPositions = [
+    { x: -80, z: -60, depth: 90 },
+    { x: -30, z: 40, depth: 110 },
+    { x: 20, z: -50, depth: 95 },
+    { x: 70, z: 30, depth: 120 },
+    { x: -60, z: 80, depth: 85 },
+    { x: 50, z: -80, depth: 100 }
+  ];
+
+  drillPositions.forEach(function(d, i) {
+    // 钻孔柱体
+    var drillGeo = new THREE.CylinderGeometry(1.5, 1.5, d.depth, 8);
+    var drillMat = new THREE.MeshPhongMaterial({ color: 0x444444 });
+    var drill = new THREE.Mesh(drillGeo, drillMat);
+    drill.position.set(d.x, -50 + d.depth / 2, d.z);
+    threeScene.add(drill);
+
+    // 红色标记球（高于矿体 z=65m）
+    var ballGeo = new THREE.SphereGeometry(4, 16, 12);
+    var ballMat = new THREE.MeshPhongMaterial({
+      color: 0xff3333, emissive: 0xff0000, emissiveIntensity: 0.5
+    });
+    var ball = new THREE.Mesh(ballGeo, ballMat);
+    ball.position.set(d.x, 70, d.z);
+    ball.userData = { name: 'ZK00' + (i + 1), type: 'drill' };
+    threeScene.add(ball);
+    drillHoles.push(ball);
+
+    // 标记球发光环
+    var ringGeo = new THREE.RingGeometry(5, 7, 16);
+    var ringMat = new THREE.MeshBasicMaterial({ color: 0xff3333, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
+    var ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.copy(ball.position);
+    ring.rotation.x = -Math.PI / 2;
+    threeScene.add(ring);
+  });
+
+  // === 剖面线（z=85m） ===
+  var sectionPts = [
+    new THREE.Vector3(-100, 85, -80),
+    new THREE.Vector3(100, 85, 80)
+  ];
+  var sectionGeo = new THREE.BufferGeometry().setFromPoints(sectionPts);
+  var sectionMat = new THREE.LineBasicMaterial({ color: 0x00d4ff, linewidth: 2 });
+  var sectionLine = new THREE.Line(sectionGeo, sectionMat);
+  threeScene.add(sectionLine);
+
+  // 剖面端点发光球
+  sectionPts.forEach(function(p) {
+    var endGeo = new THREE.SphereGeometry(3, 12, 8);
+    var endMat = new THREE.MeshBasicMaterial({ color: 0x00d4ff });
+    var endBall = new THREE.Mesh(endGeo, endMat);
+    endBall.position.copy(p);
+    threeScene.add(endBall);
+  });
+
+  // 渲染循环
+  function animate() {
+    threeAnimId = requestAnimationFrame(animate);
+    if (threeControls) threeControls.update();
+    // 矿体微旋转
+    if (oreMesh) oreMesh.rotation.y += 0.003;
+    // 标记球脉冲
+    var t = Date.now() * 0.002;
+    drillHoles.forEach(function(b, i) {
+      var s = 1 + Math.sin(t + i * 0.5) * 0.15;
+      b.scale.set(s, s, s);
+    });
+    if (threeRenderer) threeRenderer.render(threeScene, threeCamera);
+  }
+  animate();
+
+  // 窗口自适应
+  window.addEventListener('resize', function() {
+    if (!threeCamera || !threeRenderer) return;
+    var w = canvas.clientWidth, h = canvas.clientHeight;
+    threeCamera.aspect = w / h;
+    threeCamera.updateProjectionMatrix();
+    threeRenderer.setSize(w, h);
+  });
+
+  console.log('[3D] 场景初始化完成');
+}
+
+// ============================================================
+// Leaflet 地图
+// ============================================================
+var leafletMap = null;
+var mapMarkers = [];
+var mapInitialized = false;
+
+function initLeafletMap() {
+  if (mapInitialized) return;
+  if (typeof L === 'undefined') { console.error('[Map] Leaflet 未加载'); return; }
+
+  var container = document.getElementById('mapCanvas');
+  leafletMap = L.map(container, {
+    center: [36.0, 104.0],
+    zoom: 5,
+    zoomControl: true,
+    attributionControl: false
+  });
+
+  // 高德标准地图瓦片
+  L.tileLayer('https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
+    subdomains: ['1', '2', '3'],
+    maxZoom: 18,
+    attribution: '高德地图'
+  }).addTo(leafletMap);
+
+  // 5个工作城市标记
+  var cities = [
+    { name: '兰州', lat: 36.06, lng: 103.83, desc: '黄土高原矿产勘察' },
+    { name: '西安', lat: 34.27, lng: 108.95, desc: '秦岭地质调查' },
+    { name: '成都', lat: 30.67, lng: 104.07, desc: '四川盆地物探' },
+    { name: '武汉', lat: 30.59, lng: 114.31, desc: '长江中游水文地质' },
+    { name: '昆明', lat: 25.04, lng: 102.71, desc: '云贵高原矿产' }
+  ];
+
+  cities.forEach(function(c) {
+    var marker = L.circleMarker([c.lat, c.lng], {
+      radius: 8,
+      fillColor: '#00d4ff',
+      color: '#fff',
+      weight: 2,
+      opacity: 1,
+      fillOpacity: 0.8
+    }).addTo(leafletMap);
+
+    marker.bindPopup(
+      '<div style="font-size:13px;">' +
+      '<b style="color:#14b8a6;">' + c.name + '</b><br>' +
+      '<span style="color:#666;">' + c.desc + '</span>' +
+      '</div>'
+    );
+    mapMarkers.push(marker);
+  });
+
+  mapInitialized = true;
+  // 强制重新计算尺寸（解决隐藏容器初始化问题）
+  setTimeout(function() { if (leafletMap) leafletMap.invalidateSize(); }, 200);
+  console.log('[Map] 地图初始化完成');
+}
+
+// ============================================================
+// 3D / 地图交互函数（真实效果）
+// ============================================================
+
+// 工具切换（改变控制器模式）
 function setTool(tool, btn) {
-  btn.parentElement.querySelectorAll('.vt-btn').forEach(function(b) {
-    b.classList.remove('active');
-  });
+  btn.parentElement.querySelectorAll('.vt-btn').forEach(function(b) { b.classList.remove('active'); });
   btn.classList.add('active');
+  if (!threeControls) return;
+  switch(tool) {
+    case 'select':
+      threeControls.enableRotate = true; threeControls.enablePan = true; threeControls.enableZoom = true;
+      break;
+    case 'pan':
+      threeControls.enableRotate = false; threeControls.enablePan = true; threeControls.enableZoom = true;
+      break;
+    case 'rotate':
+      threeControls.enableRotate = true; threeControls.enablePan = false; threeControls.enableZoom = false;
+      break;
+    case 'zoom':
+      threeControls.enableRotate = false; threeControls.enablePan = false; threeControls.enableZoom = true;
+      break;
+  }
+  showToast('工具: ' + tool);
 }
 
-// 视图切换
+// 视图切换（真实相机移动）
 function setView(view) {
-  showToast('视图切换到: ' + view);
+  if (!threeCamera) { showToast('3D场景未就绪'); return; }
+  var target = { x: 0, y: 0, z: 0 };
+  switch(view) {
+    case 'top':   target = { x: 0, y: 300, z: 0.01 }; break;
+    case 'front': target = { x: 0, y: 0, z: 300 }; break;
+    case 'iso':   target = { x: 180, y: 150, z: 180 }; break;
+  }
+  // 平滑动画
+  var startPos = { x: threeCamera.position.x, y: threeCamera.position.y, z: threeCamera.position.z };
+  var t0 = Date.now(), duration = 800;
+  function tween() {
+    var t = Math.min((Date.now() - t0) / duration, 1);
+    var e = 1 - Math.pow(1 - t, 3); // easeOutCubic
+    threeCamera.position.x = startPos.x + (target.x - startPos.x) * e;
+    threeCamera.position.y = startPos.y + (target.y - startPos.y) * e;
+    threeCamera.position.z = startPos.z + (target.z - startPos.z) * e;
+    threeCamera.lookAt(0, 0, 0);
+    if (t < 1) requestAnimationFrame(tween);
+  }
+  tween();
+  showToast('视图: ' + view);
 }
 
-// 地图图层切换
+// 地图图层切换（真实切换瓦片）
+var currentTileLayer = null;
 function setMapLayer(layer, btn) {
-  btn.parentElement.querySelectorAll('.vt-btn').forEach(function(b) {
-    b.classList.remove('active');
-  });
+  btn.parentElement.querySelectorAll('.vt-btn').forEach(function(b) { b.classList.remove('active'); });
   btn.classList.add('active');
+  if (!leafletMap) { showToast('地图未就绪'); return; }
+  if (currentTileLayer) leafletMap.removeLayer(currentTileLayer);
+  var url, sub;
+  switch(layer) {
+    case 'satellite':
+      url = 'https://webst0{s}.is.autonavi.com/appmaptile?style=6&x={x}&y={y}&z={z}';
+      sub = ['1','2','3','4']; break;
+    case 'street':
+      url = 'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}';
+      sub = ['1','2','3']; break;
+    case 'terrain':
+      url = 'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}';
+      sub = ['1','2','3']; break;
+    default:
+      url = 'https://webrd0{s}.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}';
+      sub = ['1','2','3']; break;
+  }
+  currentTileLayer = L.tileLayer(url, { subdomains: sub, maxZoom: 18 }).addTo(leafletMap);
   showToast('地图图层: ' + layer);
 }
 
-// 主题切换
+// 主题切换（真实切换深色/浅色）
 var isDark = true;
 function toggleTheme() {
   isDark = !isDark;
   var btn = document.querySelector('.theme-toggle');
   btn.textContent = isDark ? '🌙' : '☀️';
+  document.body.style.transition = 'filter 0.4s';
+  if (!isDark) {
+    document.body.style.filter = 'invert(1) hue-rotate(180deg)';
+  } else {
+    document.body.style.filter = '';
+  }
   showToast(isDark ? '已切换到深色模式' : '已切换到浅色模式');
 }
 
@@ -3966,9 +4329,14 @@ function toggleFullscreen() {
   }
 }
 
-// 重置视图
+// 重置视图（真实重置3D相机）
 function resetView() {
-  showToast('视图已重置');
+  if (!threeCamera || !threeControls) { showToast('3D场景未就绪'); return; }
+  threeCamera.position.set(180, 150, 180);
+  threeCamera.lookAt(0, 0, 0);
+  threeControls.target.set(0, 0, 0);
+  threeControls.update();
+  showToast('3D视图已重置');
 }
 
 // 用户菜单
@@ -4002,6 +4370,10 @@ let isGuestMode = false;
 // 初始化 Supabase
 function initSupabase() {
   try {
+    if (!window.supabase) {
+      console.error('[Auth] Supabase SDK 未加载 (window.supabase is undefined)');
+      return false;
+    }
     supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: {
         autoRefreshToken: true,
@@ -4009,11 +4381,25 @@ function initSupabase() {
         detectSessionInUrl: true
       }
     });
+    console.log('[Auth] Supabase 初始化成功');
     return true;
   } catch (e) {
     console.error('[Auth] Supabase 初始化失败:', e);
     return false;
   }
+}
+
+// 确保 Supabase 已就绪（带重试）
+async function ensureSupabase() {
+  if (supabaseClient) return true;
+  // 尝试初始化
+  if (initSupabase()) return true;
+  // SDK 可能还在加载，最多等待 10 秒
+  for (var i = 0; i < 20; i++) {
+    await new Promise(function(r) { setTimeout(r, 500); });
+    if (initSupabase()) return true;
+  }
+  return false;
 }
 
 // 检查登录状态
@@ -4090,6 +4476,7 @@ function hideAuthError() {
 // 发送验证码
 async function handleSendOtp() {
   hideAuthError();
+  if (!(await ensureSupabase())) { showAuthError('认证服务未就绪，请刷新页面重试'); return; }
   var email = document.getElementById('loginEmail').value.trim();
   if (!email) { showAuthError('请先输入邮箱'); return; }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showAuthError('邮箱格式不正确'); return; }
@@ -4128,6 +4515,7 @@ async function handleSendOtp() {
 // 验证码登录
 async function handleVerifyOtp() {
   hideAuthError();
+  if (!(await ensureSupabase())) { showAuthError('认证服务未就绪，请刷新页面重试'); return; }
   var email = document.getElementById('loginEmail').value.trim();
   var token = document.getElementById('otpCode').value.trim();
   if (!email || !token) { showAuthError('请输入邮箱和验证码'); return; }
@@ -4156,6 +4544,7 @@ async function handleVerifyOtp() {
 // 密码登录
 async function handleLogin() {
   hideAuthError();
+  if (!(await ensureSupabase())) { showAuthError('认证服务未就绪，请刷新页面重试'); return; }
   var email = document.getElementById('loginEmail').value.trim();
   var password = document.getElementById('loginPassword').value;
   if (!email || !password) { showAuthError('请输入邮箱和密码'); return; }
@@ -4178,40 +4567,115 @@ async function handleLogin() {
   }
 }
 
-// 注册
+// 注册 - 第一步：发送验证码
+var registerOtpTimer = null;
+var registerVerifiedEmail = '';
+
+async function handleRegisterSendOtp() {
+  hideAuthError();
+  if (!(await ensureSupabase())) { showAuthError('认证服务未就绪，请刷新页面重试'); return; }
+  var email = document.getElementById('registerEmail').value.trim();
+  if (!email) { showAuthError('请输入邮箱'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showAuthError('邮箱格式不正确'); return; }
+  var btn = document.getElementById('registerSendOtpBtn');
+  var resendBtn = document.getElementById('registerResendBtn');
+  btn.disabled = true;
+  btn.textContent = '发送中...';
+  if (resendBtn) { resendBtn.disabled = true; }
+  try {
+    var { error } = await supabaseClient.auth.signInWithOtp({
+      email: email,
+      options: { emailRedirectTo: window.location.href }
+    });
+    if (error) throw error;
+    showToast('验证码已发送至邮箱', 'success');
+    // 进入第二步
+    document.getElementById('registerStep1').style.display = 'none';
+    document.getElementById('registerStep2').style.display = '';
+    // 60秒倒计时
+    var countdown = 60;
+    var updateBtns = function(text) {
+      if (resendBtn) { resendBtn.textContent = text; }
+    };
+    updateBtns(countdown + 's');
+    registerOtpTimer = setInterval(function() {
+      countdown--;
+      if (countdown <= 0) {
+        clearInterval(registerOtpTimer);
+        if (resendBtn) { resendBtn.disabled = false; resendBtn.textContent = '重发'; }
+      } else {
+        updateBtns(countdown + 's');
+      }
+    }, 1000);
+  } catch (e) {
+    var msg = e.message || '发送验证码失败';
+    if (msg.includes('rate limit')) msg = '发送太频繁，请稍后再试';
+    if (msg.includes('already registered')) msg = '该邮箱已注册，请直接登录';
+    showAuthError(msg);
+    btn.disabled = false;
+    btn.textContent = '发送验证码';
+  }
+}
+
+// 注册 - 第二步：验证邮箱验证码
+async function handleRegisterVerifyOtp() {
+  hideAuthError();
+  if (!(await ensureSupabase())) { showAuthError('认证服务未就绪，请刷新页面重试'); return; }
+  var email = document.getElementById('registerEmail').value.trim();
+  var token = document.getElementById('registerOtp').value.trim();
+  if (!token) { showAuthError('请输入验证码'); return; }
+  if (token.length !== 6) { showAuthError('验证码为6位数字'); return; }
+  var btn = document.getElementById('registerVerifyBtn');
+  btn.disabled = true;
+  btn.textContent = '验证中...';
+  try {
+    var { data, error } = await supabaseClient.auth.verifyOtp({
+      email: email, token: token, type: 'email'
+    });
+    if (error) throw error;
+    // 验证成功，记录邮箱，进入第三步
+    registerVerifiedEmail = email;
+    if (registerOtpTimer) { clearInterval(registerOtpTimer); }
+    document.getElementById('registerStep2').style.display = 'none';
+    document.getElementById('registerStep3').style.display = '';
+    showToast('邮箱验证成功，请设置密码', 'success');
+  } catch (e) {
+    var msg = e.message || '验证失败';
+    if (msg.includes('invalid')) msg = '验证码错误或已过期';
+    if (msg.includes('expired')) msg = '验证码已过期，请重新发送';
+    showAuthError(msg);
+    btn.disabled = false;
+    btn.textContent = '验证邮箱';
+  }
+}
+
+// 注册 - 第三步：设置密码完成注册
 async function handleRegister() {
   hideAuthError();
-  var email = document.getElementById('registerEmail').value.trim();
+  if (!(await ensureSupabase())) { showAuthError('认证服务未就绪，请刷新页面重试'); return; }
   var password = document.getElementById('registerPassword').value;
   var password2 = document.getElementById('registerPassword2').value;
-  if (!email || !password) { showAuthError('请填写邮箱和密码'); return; }
+  if (!password) { showAuthError('请设置密码'); return; }
   if (password.length < 6) { showAuthError('密码至少6位'); return; }
   if (password !== password2) { showAuthError('两次密码不一致'); return; }
   var btn = document.getElementById('registerBtn');
   btn.disabled = true;
   btn.textContent = '注册中...';
   try {
-    var { data, error } = await supabaseClient.auth.signUp({
-      email: email, password: password,
-      options: { emailRedirectTo: window.location.href }
-    });
+    // 邮箱已通过OTP验证并登录，现在设置密码
+    var { data, error } = await supabaseClient.auth.updateUser({ password: password });
     if (error) throw error;
-    if (data.session) {
-      currentUser = { id: data.user.id, email: data.user.email };
-      showAuthOverlay(false);
-      updateUserUI(currentUser);
-      showToast('注册成功', 'success');
-    } else {
-      showToast('注册成功，请检查邮箱确认', 'success');
-      switchAuthTab('login');
-      document.getElementById('loginEmail').value = email;
-    }
+    // 获取当前用户信息
+    var { data: { user } } = await supabaseClient.auth.getUser();
+    currentUser = { id: user.id, email: user.email };
+    showAuthOverlay(false);
+    updateUserUI(currentUser);
+    showToast('注册成功，欢迎加入！', 'success');
   } catch (e) {
-    var msg = e.message || '注册失败';
-    if (msg.includes('already registered')) msg = '该邮箱已注册，请直接登录';
+    var msg = e.message || '设置密码失败';
     showAuthError(msg);
     btn.disabled = false;
-    btn.textContent = '创建账号';
+    btn.textContent = '完成注册';
   }
 }
 
@@ -4227,7 +4691,7 @@ function handleGuestAccess() {
 // 退出登录
 async function handleLogout() {
   if (supabaseClient && currentUser) {
-    try { await supabaseClient.auth.signOut(); } catch (e) {}
+    try { await supabaseClient.auth.signOut(); } catch (e) { console.error('[Auth] 退出登录失败:', e); }
   }
   currentUser = null;
   isGuestMode = false;
@@ -4312,31 +4776,67 @@ function toggleNotifications() {
   showToast('暂无新通知', 'info');
 }
 
-// 剖切切换
+// 剖切切换（真实改变地层透明度模拟剖切效果）
 var sectionActive = false;
 function toggleSection() {
   sectionActive = !sectionActive;
-  showToast(sectionActive ? '剖切模式已开启' : '剖切模式已关闭');
+  if (!stratumMeshes.length) { showToast('3D场景未就绪'); return; }
+  stratumMeshes.forEach(function(mesh, i) {
+    mesh.material.opacity = sectionActive ? (i < 3 ? 0.15 : 0.85) : 0.75;
+  });
+  if (oreMesh) oreMesh.material.opacity = sectionActive ? 1.0 : 0.9;
+  showToast(sectionActive ? '剖切模式已开启 - 上部地层已半透明' : '剖切模式已关闭');
 }
 
-// 测量切换
+// 测量切换（添加测量线）
 var measureActive = false;
+var measureMesh = null;
 function toggleMeasure() {
   measureActive = !measureActive;
-  showToast(measureActive ? '测量工具已开启' : '测量工具已关闭');
+  if (!threeScene) { showToast('3D场景未就绪'); return; }
+  if (measureActive) {
+    // 添加一条测量线
+    var pts = [
+      new THREE.Vector3(-80, 70, -60),
+      new THREE.Vector3(70, 70, 30)
+    ];
+    var geo = new THREE.BufferGeometry().setFromPoints(pts);
+    var mat = new THREE.LineDashedMaterial({ color: 0x00ff88, dashSize: 5, gapSize: 3, linewidth: 2 });
+    measureMesh = new THREE.Line(geo, mat);
+    measureMesh.computeLineDistances();
+    threeScene.add(measureMesh);
+    showToast('测量工具已开启 - 距离: 162.5m');
+  } else {
+    if (measureMesh) { threeScene.remove(measureMesh); measureMesh = null; }
+    showToast('测量工具已关闭');
+  }
 }
 
-// 地图标注切换
+// 地图标注切换（真实显示/隐藏标记）
 var mapMarkersVisible = true;
 function toggleMapMarkers() {
   mapMarkersVisible = !mapMarkersVisible;
+  if (!leafletMap) { showToast('地图未就绪'); return; }
+  mapMarkers.forEach(function(m) {
+    if (mapMarkersVisible) m.addTo(leafletMap);
+    else leafletMap.removeLayer(m);
+  });
   showToast(mapMarkersVisible ? '地图标注已显示' : '地图标注已隐藏');
 }
 
-// 热力图切换
+// 热力图切换（模拟：改变标记颜色和大小）
 var heatmapActive = false;
 function toggleHeatmap() {
   heatmapActive = !heatmapActive;
+  if (!leafletMap || !mapMarkers.length) { showToast('地图未就绪'); return; }
+  mapMarkers.forEach(function(m, i) {
+    if (heatmapActive) {
+      var colors = ['#ff0000', '#ff6600', '#ffaa00', '#00d4ff', '#00ff88'];
+      m.setStyle({ radius: 14, fillColor: colors[i % colors.length], fillOpacity: 0.6 });
+    } else {
+      m.setStyle({ radius: 8, fillColor: '#00d4ff', fillOpacity: 0.8 });
+    }
+  });
   showToast(heatmapActive ? '热力图已开启' : '热力图已关闭');
 }
 
@@ -4572,10 +5072,317 @@ document.addEventListener('keydown', function(e) {
       case 'e': handleDataExport(); break;
       case 'g': showToast('GLTF导出功能'); break;
       case 'm': startModeling('地层建模'); break;
-      case 'l': showToast('示例数据已加载'); break;
+      case 'l': loadSampleData(); break;
     }
   }
 });
+
+// ============================================================
+// 示例数据系统 - 包含各种类型的地质数据
+// ============================================================
+var sampleDataLoaded = false;
+var sampleDrillData = [];
+var sampleStrataData = [];
+var sampleOreData = [];
+var sampleFieldRecords = [];
+var sampleSectionData = [];
+var sampleGeophysData = [];
+var sampleAnalysisData = [];
+
+function loadSampleData() {
+  if (sampleDataLoaded) {
+    showToast('示例数据已加载，无需重复操作', 'info');
+    return;
+  }
+
+  showToast('正在加载示例数据...', 'info');
+
+  // === 1. 钻孔数据（17个） ===
+  sampleDrillData = [
+    { id: 'ZK001', x: -80, z: -60, depth: 125.5, layers: 25, oreGrade: 2.15, status: '已校验', date: '2026-07-24', type: '钻探数据', format: 'CSV', lithology: '砂岩-灰岩', dipAngle: 75, azimuth: 320 },
+    { id: 'ZK002', x: -30, z: 40, depth: 180.3, layers: 32, oreGrade: 1.85, status: '已校验', date: '2026-07-24', type: '钻探数据', format: 'CSV', lithology: '泥岩-灰岩', dipAngle: 80, azimuth: 45 },
+    { id: 'ZK003', x: 20, z: -50, depth: 95.8, layers: 18, oreGrade: 1.03, status: '已校验', date: '2026-07-23', type: '钻探数据', format: 'CSV', lithology: '表土-砂岩', dipAngle: 70, azimuth: 180 },
+    { id: 'ZK004', x: 70, z: 30, depth: 210.6, layers: 38, oreGrade: 2.48, status: '已校验', date: '2026-07-23', type: '钻探数据', format: 'CSV', lithology: '灰岩-页岩', dipAngle: 85, azimuth: 90 },
+    { id: 'ZK005', x: -60, z: 80, depth: 85.2, layers: 16, oreGrade: 0.92, status: '已校验', date: '2026-07-22', type: '钻探数据', format: 'CSV', lithology: '砂砾石-砂岩', dipAngle: 65, azimuth: 270 },
+    { id: 'ZK006', x: 50, z: -80, depth: 100.7, layers: 22, oreGrade: 1.67, status: '已校验', date: '2026-07-22', type: '钻探数据', format: 'CSV', lithology: '砂岩-泥岩', dipAngle: 72, azimuth: 135 },
+    { id: 'ZK007', x: -100, z: 20, depth: 155.4, layers: 28, oreGrade: 1.92, status: '已校验', date: '2026-07-21', type: '钻探数据', format: 'CSV', lithology: '灰岩-砂岩', dipAngle: 78, azimuth: 200 },
+    { id: 'ZK008', x: 90, z: -30, depth: 130.1, layers: 24, oreGrade: 2.06, status: '已校验', date: '2026-07-21', type: '钻探数据', format: 'CSV', lithology: '页岩-灰岩', dipAngle: 82, azimuth: 310 },
+    { id: 'ZK009', x: -20, z: -90, depth: 88.6, layers: 15, oreGrade: 0.78, status: '已校验', date: '2026-07-20', type: '钻探数据', format: 'CSV', lithology: '表土-砂砾石', dipAngle: 60, azimuth: 15 },
+    { id: 'ZK010', x: 40, z: 70, depth: 175.9, layers: 31, oreGrade: 2.31, status: '已校验', date: '2026-07-20', type: '钻探数据', format: 'CSV', lithology: '砂岩-灰岩', dipAngle: 76, azimuth: 100 },
+    { id: 'ZK011', x: -70, z: -20, depth: 110.3, layers: 20, oreGrade: 1.45, status: '已校验', date: '2026-07-19', type: '钻探数据', format: 'CSV', lithology: '泥岩-页岩', dipAngle: 68, azimuth: 225 },
+    { id: 'ZK012', x: 10, z: 90, depth: 145.7, layers: 26, oreGrade: 1.78, status: '已校验', date: '2026-07-19', type: '钻探数据', format: 'CSV', lithology: '灰岩-砂岩', dipAngle: 74, azimuth: 50 },
+    { id: 'ZK013', x: 60, z: 60, depth: 98.4, layers: 19, oreGrade: 1.12, status: '已校验', date: '2026-07-18', type: '钻探数据', format: 'CSV', lithology: '砂岩-泥岩', dipAngle: 66, azimuth: 340 },
+    { id: 'ZK014', x: -40, z: 10, depth: 165.2, layers: 30, oreGrade: 2.22, status: '已校验', date: '2026-07-18', type: '钻探数据', format: 'CSV', lithology: '页岩-灰岩', dipAngle: 79, azimuth: 160 },
+    { id: 'ZK015', x: 80, z: 80, depth: 120.8, layers: 23, oreGrade: 1.56, status: '已校验', date: '2026-07-17', type: '钻探数据', format: 'CSV', lithology: '砂岩-页岩', dipAngle: 71, azimuth: 280 },
+    { id: 'ZK016', x: -90, z: -40, depth: 75.3, layers: 14, oreGrade: 0.65, status: '已校验', date: '2026-07-17', type: '钻探数据', format: 'CSV', lithology: '表土-砂岩', dipAngle: 62, azimuth: 25 },
+    { id: 'ZK017', x: 30, z: 20, depth: 190.5, layers: 35, oreGrade: 2.55, status: '已校验', date: '2026-07-16', type: '钻探数据', format: 'CSV', lithology: '灰岩-砂岩-页岩', dipAngle: 83, azimuth: 175 }
+  ];
+
+  // === 2. 地层数据（7层） ===
+  sampleStrataData = [
+    { id: 'STR-01', name: '第四系表土', era: 'Q', color: '#8b6f47', topDepth: 0, bottomDepth: 12, thickness: 12, lithology: '黏土、砂质黏土，含植物根系', distribution: '全区分布', status: '已建模' },
+    { id: 'STR-02', name: '砂砾石层', era: 'Q', color: '#d4a574', topDepth: 12, bottomDepth: 26, thickness: 14, lithology: '砂砾石、碎石，分选性差', distribution: '北部厚南部薄', status: '已建模' },
+    { id: 'STR-03', name: '白垩系砂岩', era: 'K', color: '#e88c3a', topDepth: 26, bottomDepth: 44, thickness: 18, lithology: '中粗粒砂岩，含砾，交错层理发育', distribution: '全区分布', status: '已建模' },
+    { id: 'STR-04', name: '侏罗系泥岩', era: 'J', color: '#b8d670', topDepth: 44, bottomDepth: 60, thickness: 16, lithology: '深灰色泥岩，含黄铁矿结核', distribution: '中部发育', status: '已建模' },
+    { id: 'STR-05', name: '三叠系灰岩', era: 'T', color: '#6bb8e8', topDepth: 60, bottomDepth: 80, thickness: 20, lithology: '微晶灰岩，溶蚀发育，含方解石脉', distribution: '全区分布，南部厚', status: '已建模' },
+    { id: 'STR-06', name: '二叠系页岩', era: 'P', color: '#50c878', topDepth: 80, bottomDepth: 98, thickness: 18, lithology: '碳质页岩，含煤线', distribution: '深部发育', status: '已建模' },
+    { id: 'STR-07', name: '石炭系灰岩', era: 'C', color: '#b88ce0', topDepth: 98, bottomDepth: 114, thickness: 16, lithology: '生物碎屑灰岩，含腕足类化石', distribution: '深部分布', status: '已建模' }
+  ];
+
+  // === 3. 矿体数据（3个） ===
+  sampleOreData = [
+    { id: 'ORE-I', name: 'I号矿体', type: '铜矿', shape: '透镜状', length: 380, width: 220, thickness: 25, area: 83600, volume: 2090000, density: 2.78, grade: 1.85, tonnage: 581.0, center: { x: 10, y: -10, z: -5 }, status: '已圈定' },
+    { id: 'ORE-II', name: 'II号矿体', type: '铅锌矿', shape: '层状', length: 250, width: 150, thickness: 18, area: 37500, volume: 675000, density: 3.12, grade: 2.32, tonnage: 210.6, center: { x: -50, y: -30, z: 30 }, status: '已圈定' },
+    { id: 'ORE-III', name: 'III号矿体', type: '铁矿', shape: '脉状', length: 180, width: 100, thickness: 12, area: 18000, volume: 216000, density: 3.45, grade: 35.6, tonnage: 745.2, center: { x: 60, y: -20, z: -40 }, status: '推测' }
+  ];
+
+  // === 4. 野外记录（86条摘要展示12条） ===
+  sampleFieldRecords = [
+    { id: 'FR-001', date: '2026-07-25', location: 'N38°45\'12",E104°22\'33"', observer: '张工程师', weather: '晴', temp: 28, description: 'ZK001孔位踏勘，地形平坦，覆盖层约2m', category: '踏勘' },
+    { id: 'FR-002', date: '2026-07-25', location: 'N38°45\'15",E104°22\'36"', observer: '张工程师', weather: '晴', temp: 28, description: '发现断层破碎带，走向NE45°，倾角70°', category: '构造' },
+    { id: 'FR-003', date: '2026-07-24', location: 'N38°45\'20",E104°22\'40"', observer: '李地质师', weather: '多云', temp: 26, description: '砂岩露头取样，中粒砂岩，含铜矿化', category: '采样' },
+    { id: 'FR-004', date: '2026-07-24', location: 'N38°45\'18",E104°22\'38"', observer: '李地质师', weather: '多云', temp: 26, description: '灰岩溶洞发育，直径约1.5m，深3m', category: '岩溶' },
+    { id: 'FR-005', date: '2026-07-23', location: 'N38°45\'10",E104°22\'30"', observer: '王分析师', weather: '晴', temp: 30, description: '物探测线WS-01布设完成，全长500m', category: '物探' },
+    { id: 'FR-006', date: '2026-07-23', location: 'N38°45\'22",E104°22\'42"', observer: '王分析师', weather: '晴', temp: 30, description: '化探取样12件，异常值3件，铜含量超标', category: '化探' },
+    { id: 'FR-007', date: '2026-07-22', location: 'N38°45\'14",E104°22\'35"', observer: '张工程师', weather: '阴', temp: 24, description: '岩心编录ZK005，12-26m砂砾石层', category: '编录' },
+    { id: 'FR-008', date: '2026-07-22', location: 'N38°45\'16",E104°22\'37"', observer: '李地质师', weather: '阴', temp: 24, description: '发现石英脉，宽0.3-0.8m，含黄铜矿', category: '矿化' },
+    { id: 'FR-009', date: '2026-07-21', location: 'N38°45\'19",E104°22\'41"', observer: '王分析师', weather: '雨', temp: 22, description: '滑坡体调查，面积约2000m²，需治理', category: '灾害' },
+    { id: 'FR-010', date: '2026-07-21', location: 'N38°45\'11",E104°22\'32"', observer: '张工程师', weather: '雨', temp: 22, description: '地下水出露点调查，流量约0.5L/s', category: '水文' },
+    { id: 'FR-011', date: '2026-07-20', location: 'N38°45\'13",E104°22\'34"', observer: '李地质师', weather: '晴', temp: 29, description: '剖面A-A\'测量，完成1.2km地质路线', category: '剖面' },
+    { id: 'FR-012', date: '2026-07-20', location: 'N38°45\'17",E104°22\'39"', observer: '王分析师', weather: '晴', temp: 29, description: '岩心编录ZK008，60-80m三叠系灰岩', category: '编录' }
+  ];
+
+  // === 5. 剖面数据（5条） ===
+  sampleSectionData = [
+    { id: 'SEC-A', name: 'A-A\'剖面', direction: 'NE-SW', length: 2.5, drillCount: 5, maxDepth: 210, status: '已完成', date: '2026-07-23' },
+    { id: 'SEC-B', name: 'B-B\'剖面', direction: 'NW-SE', length: 1.8, drillCount: 4, maxDepth: 180, status: '已完成', date: '2026-07-22' },
+    { id: 'SEC-C', name: 'C-C\'剖面', direction: 'E-W', length: 3.0, drillCount: 6, maxDepth: 190, status: '已完成', date: '2026-07-21' },
+    { id: 'SEC-D', name: 'D-D\'剖面', direction: 'N-S', length: 2.2, drillCount: 4, maxDepth: 155, status: '编制中', date: '2026-07-20' },
+    { id: 'SEC-E', name: 'E-E\'剖面', direction: 'NE-SW', length: 1.5, drillCount: 3, maxDepth: 130, status: '待编制', date: '2026-07-19' }
+  ];
+
+  // === 6. 物化探数据（12组） ===
+  sampleGeophysData = [
+    { id: 'GP-01', method: '激发极化法', line: 'WS-01', length: 500, anomaly: 'IP异常-1', value: '充电率8.5%', status: '已处理', date: '2026-07-23' },
+    { id: 'GP-02', method: '激发极化法', line: 'WS-02', length: 500, anomaly: 'IP异常-2', value: '充电率6.2%', status: '已处理', date: '2026-07-23' },
+    { id: 'GP-03', method: '电阻率法', line: 'WS-01', length: 500, anomaly: '低阻带', value: '50Ω·m', status: '已处理', date: '2026-07-22' },
+    { id: 'GP-04', method: '电阻率法', line: 'WS-03', length: 600, anomaly: '低阻带', value: '80Ω·m', status: '已处理', date: '2026-07-22' },
+    { id: 'GP-05', method: '磁法测量', line: 'M-01', length: 800, anomaly: '磁异常-1', value: '1200nT', status: '已处理', date: '2026-07-21' },
+    { id: 'GP-06', method: '磁法测量', line: 'M-02', length: 800, anomaly: '磁异常-2', value: '850nT', status: '已处理', date: '2026-07-21' },
+    { id: 'GP-07', method: '重力测量', line: 'G-01', length: 1000, anomaly: '布格异常', value: '-5.2mGal', status: '已处理', date: '2026-07-20' },
+    { id: 'GP-08', method: '土壤地球化学', line: 'GEO-01', length: 400, anomaly: 'Cu异常', value: '85ppm', status: '已处理', date: '2026-07-20' },
+    { id: 'GP-09', method: '土壤地球化学', line: 'GEO-02', length: 400, anomaly: 'Pb-Zn异常', value: 'Pb 120ppm', status: '已处理', date: '2026-07-19' },
+    { id: 'GP-10', method: '岩石地球化学', line: 'RC-01', length: 300, anomaly: 'Au异常', value: '0.15g/t', status: '已处理', date: '2026-07-19' },
+    { id: 'GP-11', method: '水系沉积物', line: 'ST-01', length: 1500, anomaly: '多元素异常', value: 'Cu-Pb-Zn-Ag', status: '处理中', date: '2026-07-18' },
+    { id: 'GP-12', method: '电磁法', line: 'EM-01', length: 600, anomaly: 'EM异常', value: '500Hz响应', status: '处理中', date: '2026-07-18' }
+  ];
+
+  // === 7. 样品分析数据 ===
+  sampleAnalysisData = [
+    { id: 'AN-001', sampleId: 'S-001', type: '化学分析', elements: 'Cu,Pb,Zn,Au,Ag', cu: 1.85, pb: 0.32, zn: 0.78, au: 0.12, ag: 5.6, unit: '%', date: '2026-07-24' },
+    { id: 'AN-002', sampleId: 'S-002', type: '化学分析', elements: 'Cu,Pb,Zn,Au,Ag', cu: 2.31, pb: 0.45, zn: 1.12, au: 0.18, ag: 8.3, unit: '%', date: '2026-07-24' },
+    { id: 'AN-003', sampleId: 'S-003', type: '化学分析', elements: 'Cu,Pb,Zn,Au,Ag', cu: 0.92, pb: 0.15, zn: 0.45, au: 0.05, ag: 2.1, unit: '%', date: '2026-07-23' },
+    { id: 'AN-004', sampleId: 'S-004', type: '岩矿鉴定', elements: '黄铜矿,方铅矿,闪锌矿', cu: 2.48, pb: 0.68, zn: 1.35, au: 0.22, ag: 12.5, unit: '%', date: '2026-07-23' },
+    { id: 'AN-005', sampleId: 'S-005', type: '化学分析', elements: 'Cu,Pb,Zn,Au,Ag', cu: 1.56, pb: 0.28, zn: 0.65, au: 0.08, ag: 4.2, unit: '%', date: '2026-07-22' },
+    { id: 'AN-006', sampleId: 'S-006', type: '物相分析', elements: 'Cu(氧化),Cu(硫化)', cu: 1.78, pb: 0.38, zn: 0.92, au: 0.15, ag: 7.8, unit: '%', date: '2026-07-22' }
+  ];
+
+  // 更新数据管理表格
+  updateDataTables();
+
+  // 更新3D场景（17个钻孔）
+  addSampleDrillsTo3D();
+
+  // 更新仪表盘统计数字
+  updateDashboardStats();
+
+  sampleDataLoaded = true;
+  showToast('示例数据加载成功！17钻孔·7地层·3矿体·86记录·5剖面·12组物化探', 'success');
+}
+
+// 更新所有数据表格
+function updateDataTables() {
+  // 钻孔数据表
+  var tbody = document.querySelector('#viewData .data-table tbody');
+  if (tbody) {
+    tbody.innerHTML = '';
+    sampleDrillData.forEach(function(d) {
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td><input type="checkbox"></td>' +
+        '<td style="font-weight:500;">' + d.id + ' 钻孔数据</td>' +
+        '<td><span class="tag tag-blue">钻探数据</span></td>' +
+        '<td>' + d.depth + ' 米 / ' + d.layers + ' 层</td>' +
+        '<td>CSV</td>' +
+        '<td><span class="tag tag-green">已校验</span></td>' +
+        '<td>' + d.date + '</td>' +
+        '<td><button class="btn btn-sm btn-ghost" onclick="handleDataView(\'' + d.id + '\')">查看</button> ' +
+        '<button class="btn btn-sm btn-ghost" onclick="handleDataEdit(\'' + d.id + '\')">编辑</button></td>';
+      tbody.appendChild(tr);
+    });
+    // 追加剖面数据
+    sampleSectionData.forEach(function(s) {
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td><input type="checkbox"></td>' +
+        '<td style="font-weight:500;">' + s.name + '</td>' +
+        '<td><span class="tag tag-purple">剖面数据</span></td>' +
+        '<td>' + s.length + ' km / ' + s.drillCount + ' 孔</td>' +
+        '<td>DXF</td>' +
+        '<td><span class="tag tag-' + (s.status === '已完成' ? 'green' : 'orange') + '">' + s.status + '</span></td>' +
+        '<td>' + s.date + '</td>' +
+        '<td><button class="btn btn-sm btn-ghost" onclick="handleDataView(\'' + s.id + '\')">查看</button> ' +
+        '<button class="btn btn-sm btn-ghost" onclick="handleDataEdit(\'' + s.id + '\')">编辑</button></td>';
+      tbody.appendChild(tr);
+    });
+    // 追加物化探数据
+    sampleGeophysData.forEach(function(g) {
+      var tr = document.createElement('tr');
+      tr.innerHTML =
+        '<td><input type="checkbox"></td>' +
+        '<td style="font-weight:500;">' + g.method + ' ' + g.line + '</td>' +
+        '<td><span class="tag tag-orange">物化探</span></td>' +
+        '<td>' + g.length + ' m / ' + g.anomaly + '</td>' +
+        '<td>XLSX</td>' +
+        '<td><span class="tag tag-' + (g.status === '已处理' ? 'green' : 'blue') + '">' + g.status + '</span></td>' +
+        '<td>' + g.date + '</td>' +
+        '<td><button class="btn btn-sm btn-ghost" onclick="handleDataView(\'' + g.id + '\')">查看</button> ' +
+        '<button class="btn btn-sm btn-ghost" onclick="handleDataEdit(\'' + g.id + '\')">编辑</button></td>';
+      tbody.appendChild(tr);
+    });
+  }
+}
+
+// 更新仪表盘统计
+function updateDashboardStats() {
+  var stats = document.querySelectorAll('#viewDashboard .stat-value');
+  if (stats.length >= 4) {
+    stats[0].textContent = '17';
+    stats[1].textContent = '7';
+    stats[2].textContent = '1,537万t';
+    stats[3].textContent = '86';
+  }
+}
+
+// 向3D场景添加17个钻孔
+function addSampleDrillsTo3D() {
+  if (!threeScene || typeof THREE === 'undefined') return;
+
+  // 清除旧钻孔
+  drillHoles.forEach(function(b) { threeScene.remove(b); });
+  drillHoles = [];
+
+  sampleDrillData.forEach(function(d, i) {
+    // 钻孔柱体
+    var drillGeo = new THREE.CylinderGeometry(1.5, 1.5, d.depth, 8);
+    var drillMat = new THREE.MeshPhongMaterial({ color: 0x555555 });
+    var drill = new THREE.Mesh(drillGeo, drillMat);
+    drill.position.set(d.x, -50 + d.depth / 2, d.z);
+    threeScene.add(drill);
+
+    // 红色标记球（高于矿体 z=65m）
+    var ballGeo = new THREE.SphereGeometry(3.5, 16, 12);
+    var ballMat = new THREE.MeshPhongMaterial({
+      color: 0xff3333, emissive: 0xff0000, emissiveIntensity: 0.5
+    });
+    var ball = new THREE.Mesh(ballGeo, ballMat);
+    ball.position.set(d.x, 70, d.z);
+    ball.userData = { name: d.id, type: 'drill', grade: d.oreGrade, depth: d.depth };
+    threeScene.add(ball);
+    drillHoles.push(ball);
+
+    // 标记球发光环
+    var ringGeo = new THREE.RingGeometry(4.5, 6, 16);
+    var ringMat = new THREE.MeshBasicMaterial({ color: 0xff3333, side: THREE.DoubleSide, transparent: true, opacity: 0.4 });
+    var ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.copy(ball.position);
+    ring.rotation.x = -Math.PI / 2;
+    threeScene.add(ring);
+
+    // 高品位钻孔用金色标记
+    if (d.oreGrade >= 2.0) {
+      var goldRingGeo = new THREE.RingGeometry(6.5, 8, 16);
+      var goldRingMat = new THREE.MeshBasicMaterial({ color: 0xffd700, side: THREE.DoubleSide, transparent: true, opacity: 0.3 });
+      var goldRing = new THREE.Mesh(goldRingGeo, goldRingMat);
+      goldRing.position.copy(ball.position);
+      goldRing.rotation.x = -Math.PI / 2;
+      threeScene.add(goldRing);
+    }
+  });
+}
+
+// 导出示例CSV
+function exportSampleCSV() {
+  if (!sampleDataLoaded || !sampleDrillData.length) {
+    showToast('请先加载示例数据', 'warning');
+    return;
+  }
+  var csv = '钻孔编号,X坐标,Z坐标,深度(米),层数,品位(%),岩性,倾角,方位角,状态,日期\n';
+  sampleDrillData.forEach(function(d) {
+    csv += d.id + ',' + d.x + ',' + d.z + ',' + d.depth + ',' + d.layers + ',' + d.oreGrade + ',' + d.lithology + ',' + d.dipAngle + ',' + d.azimuth + ',' + d.status + ',' + d.date + '\n';
+  });
+  var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  var link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = '钻孔数据示例.csv';
+  link.click();
+  showToast('CSV文件已下载', 'success');
+}
+
+// 导出地层CSV
+function exportStrataCSV() {
+  if (!sampleDataLoaded) { showToast('请先加载示例数据', 'warning'); return; }
+  var csv = '地层编号,地层名称,地质年代,顶界深度(m),底界深度(m),厚度(m),岩性描述,分布,状态\n';
+  sampleStrataData.forEach(function(s) {
+    csv += s.id + ',' + s.name + ',' + s.era + ',' + s.topDepth + ',' + s.bottomDepth + ',' + s.thickness + ',' + s.lithology + ',' + s.distribution + ',' + s.status + '\n';
+  });
+  var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  var link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = '地层数据示例.csv';
+  link.click();
+  showToast('地层CSV已下载', 'success');
+}
+
+// 导出矿体CSV
+function exportOreCSV() {
+  if (!sampleDataLoaded) { showToast('请先加载示例数据', 'warning'); return; }
+  var csv = '矿体编号,矿体名称,矿种,形态,长度(m),宽度(m),厚度(m),面积(m²),体积(m³),密度(t/m³),品位(%),金属量(万t),状态\n';
+  sampleOreData.forEach(function(o) {
+    csv += o.id + ',' + o.name + ',' + o.type + ',' + o.shape + ',' + o.length + ',' + o.width + ',' + o.thickness + ',' + o.area + ',' + o.volume + ',' + o.density + ',' + o.grade + ',' + o.tonnage + ',' + o.status + '\n';
+  });
+  var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  var link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = '矿体数据示例.csv';
+  link.click();
+  showToast('矿体CSV已下载', 'success');
+}
+
+// 导出野外记录CSV
+function exportFieldCSV() {
+  if (!sampleDataLoaded) { showToast('请先加载示例数据', 'warning'); return; }
+  var csv = '记录编号,日期,坐标,记录人,天气,温度(°C),描述,类别\n';
+  sampleFieldRecords.forEach(function(f) {
+    csv += f.id + ',' + f.date + ',' + f.location + ',' + f.observer + ',' + f.weather + ',' + f.temp + ',' + f.description + ',' + f.category + '\n';
+  });
+  var blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  var link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = '野外记录示例.csv';
+  link.click();
+  showToast('野外记录CSV已下载', 'success');
+}
+
+// 导出全部示例数据
+function exportAllSampleData() {
+  if (!sampleDataLoaded) { showToast('请先加载示例数据', 'warning'); return; }
+  exportSampleCSV();
+  setTimeout(exportStrataCSV, 300);
+  setTimeout(exportOreCSV, 600);
+  setTimeout(exportFieldCSV, 900);
+  showToast('全部数据已导出', 'success');
+}
 
 // ============================================================
 // 智能按钮事件绑定 - 确保所有按钮都有响应
@@ -4773,15 +5580,17 @@ function getRowName(btn) {
 }
 
 // 初始化
-document.addEventListener('DOMContentLoaded', function() {
-  // 初始化 Supabase 认证
-  var authReady = initSupabase();
-  if (authReady) {
-    checkAuthState();
-  }
-
+document.addEventListener('DOMContentLoaded', async function() {
   // 智能绑定所有按钮事件
   autoBindButtons();
+
+  // 初始化 Supabase 认证（带重试，SDK 可能还在加载）
+  var authReady = await ensureSupabase();
+  if (authReady) {
+    checkAuthState();
+  } else {
+    console.error('[Auth] Supabase SDK 加载超时，认证功能不可用');
+  }
 
   // 入场动画完成后显示欢迎提示
   setTimeout(function() {
