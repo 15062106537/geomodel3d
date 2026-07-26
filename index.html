@@ -9,8 +9,8 @@
 <script src="OrbitControls.js"></script>
 <link rel="stylesheet" href="leaflet.css">
 <script src="leaflet.js"></script>
-<!-- Supabase 认证SDK -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Supabase 认证SDK（异步加载，不阻塞页面） -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" async></script>
 <style>
 /* ============================================================
    GeoModel3D Pro — 智能地质建模平台
@@ -4933,18 +4933,8 @@ function handleHelp() {
   showToast('快捷键: S剖面 R储量 E导出 G建模 L示例', 'info');
 }
 
-// 储量估算
-function startEstimation() {
-  var btn = event.target;
-  var originalText = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = '估算中...';
-  setTimeout(function() {
-    btn.disabled = false;
-    btn.textContent = originalText;
-    showToast('储量估算完成: 金金属量 12.5 吨', 'success');
-  }, 1500);
-}
+// 储量估算（旧版占位，新实现在文件后部"全面功能修复"区块中）
+// startEstimation 已重新实现，支持不同方法不同结果
 
 // 智能解析地质记录
 function generateGeoRecord() {
@@ -5408,22 +5398,9 @@ function generateChart(type) {
   }, 500);
 }
 
-// 剖面操作
-function exportSectionImage() { showToast('剖面图片导出成功', 'success'); }
-function newSection() { showToast('新建剖面已创建'); }
-
-// 报告生成
-function generateReport() {
-  var btn = event.target;
-  var originalText = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = '生成中...';
-  setTimeout(function() {
-    btn.disabled = false;
-    btn.textContent = originalText;
-    showToast('报告生成完成，已下载', 'success');
-  }, 2000);
-}
+// 剖面操作（旧版占位，新实现在文件后部）
+// exportSectionImage, newSection, generateReport, startExport, startVoiceInput, saveSettings
+// 均在文件后部"全面功能修复"区块中重新实现
 
 function selectReportType(type) {
   document.querySelectorAll('#viewReport [style*="cursor:pointer"]').forEach(function(c) {
@@ -5433,24 +5410,6 @@ function selectReportType(type) {
   showToast('已选择: ' + type);
 }
 
-// 数据导出
-function startExport() {
-  var btn = event.target;
-  var originalText = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = '导出中...';
-  setTimeout(function() {
-    btn.disabled = false;
-    btn.textContent = originalText;
-    showToast('数据包导出成功', 'success');
-  }, 1500);
-}
-
-// 野外记录操作
-function startVoiceInput() {
-  showToast('语音录入已启动（请允许麦克风权限）');
-  setTimeout(function() { showToast('语音识别中...', 'info'); }, 500);
-}
 function fillSampleForm() {
   var textarea = document.querySelector('#viewFieldwork textarea');
   if (textarea) {
@@ -5463,19 +5422,6 @@ function insertPhoto() { showToast('请选择照片文件'); }
 function copyRecord() { showToast('记录已复制到剪贴板', 'success'); }
 function saveRecord() { showToast('记录已保存', 'success'); }
 function linkToMap() { showToast('已关联到地图位置', 'success'); }
-
-// 设置保存
-function saveSettings() {
-  var btn = event.target;
-  var originalText = btn.textContent;
-  btn.disabled = true;
-  btn.textContent = '保存中...';
-  setTimeout(function() {
-    btn.disabled = false;
-    btn.textContent = originalText;
-    showToast('设置已保存', 'success');
-  }, 800);
-}
 
 // 图层操作
 function toggleLayerVisibility(btn) {
@@ -7486,13 +7432,27 @@ function initAllNewFeatures() {
   console.log('[Init] 所有新功能已初始化');
 }
 
-// 在DOMContentLoaded后初始化
-document.addEventListener('DOMContentLoaded', function() {
-  setTimeout(initAllNewFeatures, 1500);
-});
+// 设置保存
+function saveSettings() {
+  var btn = event.target;
+  var originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '保存中...';
+  setTimeout(function() {
+    btn.disabled = false;
+    btn.textContent = originalText;
+    showToast('设置已保存', 'success');
+  }, 800);
+}
 
+// 在DOMContentLoaded后初始化（合并到主初始化函数中）
+
+document.addEventListener('DOMContentLoaded', async function() {
   // 智能绑定所有按钮事件
   autoBindButtons();
+
+  // 初始化所有新功能（属性面板/测量/地图/设置等）
+  setTimeout(initAllNewFeatures, 1500);
 
   // 初始化 Supabase 认证（带重试，SDK 可能还在加载）
   var authReady = await ensureSupabase();
