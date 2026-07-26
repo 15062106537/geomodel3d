@@ -1,6 +1,6 @@
-// GeoModel3D Service Worker v9.0 — 本地库文件优先
-const CACHE_NAME = 'geomodel3d-v9.0';
-const RUNTIME_CACHE = 'geomodel3d-runtime-v9';
+// GeoModel3D Service Worker v9.1 — 本地库文件优先
+const CACHE_NAME = 'geomodel3d-v9.1';
+const RUNTIME_CACHE = 'geomodel3d-runtime-v9.1';
 
 // 核心静态资源（含本地库文件）
 const PRECACHE_ASSETS = [

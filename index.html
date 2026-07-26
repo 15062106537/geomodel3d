@@ -1608,6 +1608,12 @@ body::after {
   to { opacity: 1; transform: translateX(0); }
 }
 
+@keyframes locatePulse {
+  0% { box-shadow: 0 0 0 4px rgba(20,184,166,0.3), 0 2px 8px rgba(0,0,0,0.4); }
+  50% { box-shadow: 0 0 0 12px rgba(20,184,166,0.1), 0 2px 8px rgba(0,0,0,0.4); }
+  100% { box-shadow: 0 0 0 4px rgba(20,184,166,0.3), 0 2px 8px rgba(0,0,0,0.4); }
+}
+
 .toast-icon {
   font-size: 18px;
 }
@@ -2882,8 +2888,9 @@ body::after {
           <div class="card-header">
             <div class="card-title"><span class="icon">📊</span> 钻孔柱状图</div>
             <button class="btn btn-sm btn-primary" onclick="generateChart('column')">生成</button>
+            <button class="btn btn-sm btn-secondary" onclick="openChartLarge('column')" title="放大查看" style="margin-left:4px;padding:2px 8px;">🔍</button>
           </div>
-          <div class="card-body" style="height:200px;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));position:relative;">
+          <div class="card-body" style="height:200px;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));position:relative;cursor:zoom-in;" ondblclick="openChartLarge('column')">
             <canvas id="chartColumn" style="width:100%;height:100%;" width="400" height="200"></canvas>
           </div>
         </div>
@@ -2893,8 +2900,9 @@ body::after {
           <div class="card-header">
             <div class="card-title"><span class="icon">📐</span> 地质剖面图</div>
             <button class="btn btn-sm btn-primary" onclick="generateChart('section')">生成</button>
+            <button class="btn btn-sm btn-secondary" onclick="openChartLarge('section')" title="放大查看" style="margin-left:4px;padding:2px 8px;">🔍</button>
           </div>
-          <div class="card-body" style="height:200px;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));position:relative;">
+          <div class="card-body" style="height:200px;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));position:relative;cursor:zoom-in;" ondblclick="openChartLarge('section')">
             <canvas id="chartSection" style="width:100%;height:100%;" width="400" height="200"></canvas>
           </div>
         </div>
@@ -2904,8 +2912,9 @@ body::after {
           <div class="card-header">
             <div class="card-title"><span class="icon">〰️</span> 等值线图</div>
             <button class="btn btn-sm btn-primary" onclick="generateChart('contour')">生成</button>
+            <button class="btn btn-sm btn-secondary" onclick="openChartLarge('contour')" title="放大查看" style="margin-left:4px;padding:2px 8px;">🔍</button>
           </div>
-          <div class="card-body" style="height:200px;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));position:relative;">
+          <div class="card-body" style="height:200px;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));position:relative;cursor:zoom-in;" ondblclick="openChartLarge('contour')">
             <canvas id="chartContour" style="width:100%;height:100%;" width="400" height="200"></canvas>
           </div>
         </div>
@@ -2915,8 +2924,9 @@ body::after {
           <div class="card-header">
             <div class="card-title"><span class="icon">🌹</span> 节理玫瑰图</div>
             <button class="btn btn-sm btn-primary" onclick="generateChart('rose')">生成</button>
+            <button class="btn btn-sm btn-secondary" onclick="openChartLarge('rose')" title="放大查看" style="margin-left:4px;padding:2px 8px;">🔍</button>
           </div>
-          <div class="card-body" style="height:200px;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));position:relative;">
+          <div class="card-body" style="height:200px;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));position:relative;cursor:zoom-in;" ondblclick="openChartLarge('rose')">
             <canvas id="chartRose" style="width:100%;height:100%;" width="400" height="200"></canvas>
           </div>
         </div>
@@ -2926,8 +2936,9 @@ body::after {
           <div class="card-header">
             <div class="card-title"><span class="icon">🔺</span> Piper三线图</div>
             <button class="btn btn-sm btn-primary" onclick="generateChart('piper')">生成</button>
+            <button class="btn btn-sm btn-secondary" onclick="openChartLarge('piper')" title="放大查看" style="margin-left:4px;padding:2px 8px;">🔍</button>
           </div>
-          <div class="card-body" style="height:200px;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));position:relative;">
+          <div class="card-body" style="height:200px;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));position:relative;cursor:zoom-in;" ondblclick="openChartLarge('piper')">
             <canvas id="chartPiper" style="width:100%;height:100%;" width="400" height="200"></canvas>
           </div>
         </div>
@@ -2937,8 +2948,9 @@ body::after {
           <div class="card-header">
             <div class="card-title"><span class="icon">📊</span> 品位分布图</div>
             <button class="btn btn-sm btn-primary" onclick="generateChart('grade')">生成</button>
+            <button class="btn btn-sm btn-secondary" onclick="openChartLarge('grade')" title="放大查看" style="margin-left:4px;padding:2px 8px;">🔍</button>
           </div>
-          <div class="card-body" style="height:200px;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));position:relative;">
+          <div class="card-body" style="height:200px;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));position:relative;cursor:zoom-in;" ondblclick="openChartLarge('grade')">
             <canvas id="chartGrade" style="width:100%;height:100%;" width="400" height="200"></canvas>
           </div>
         </div>
@@ -3660,6 +3672,7 @@ body::after {
 
     <div class="panel-section">
       <div class="panel-section-title"><span class="icon">📥</span> 快捷操作</div>
+      <button class="btn btn-secondary btn-sm btn-block" style="margin-bottom:var(--space-2);background:linear-gradient(135deg,var(--teal),var(--teal-dark));color:#fff;border:none;" onclick="startMapLocate()">📍 地图定位记录</button>
       <button class="btn btn-secondary btn-sm btn-block" style="margin-bottom:var(--space-2);">📤 导出模型</button>
       <button class="btn btn-secondary btn-sm btn-block" style="margin-bottom:var(--space-2);">📷 截图</button>
       <button class="btn btn-secondary btn-sm btn-block" style="margin-bottom:var(--space-2);">🔄 重置视图</button>
@@ -3808,6 +3821,69 @@ body::after {
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('projectModal')">取消</button>
       <button class="btn btn-primary">+ 新建项目</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     大版图模态框
+     ============================================================ -->
+<div class="modal-overlay" id="chartLargeModal">
+  <div class="modal" style="max-width:92vw;max-height:92vh;width:auto;">
+    <div class="modal-header">
+      <div class="modal-title" id="chartLargeTitle">图表查看</div>
+      <div style="display:flex;gap:var(--space-2);align-items:center;">
+        <button class="btn btn-sm btn-secondary" onclick="downloadChartLarge()" title="下载图片">💾 下载</button>
+        <button class="modal-close" onclick="closeModal('chartLargeModal')">✕</button>
+      </div>
+    </div>
+    <div class="modal-body" style="padding:var(--space-3);overflow:auto;">
+      <canvas id="chartLargeCanvas" width="1200" height="700" style="width:100%;height:auto;background:linear-gradient(180deg,var(--bg-2),var(--bg-1));border-radius:8px;"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     地图定位工作记录模态框
+     ============================================================ -->
+<div class="modal-overlay" id="locateRecordModal">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <div class="modal-title">📍 工作记录 - 定位点</div>
+      <button class="modal-close" onclick="closeModal('locateRecordModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="margin-bottom:var(--space-3);padding:8px 12px;background:var(--bg-glass-2);border-radius:6px;font-size:12px;">
+        <span style="color:var(--text-300);">定位坐标：</span>
+        <span id="locateCoord" style="color:var(--teal);font-weight:600;">--</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">地点名称</label>
+        <input type="text" class="form-input" id="locateName" placeholder="例：1号勘探线东端">
+      </div>
+      <div class="form-group">
+        <label class="form-label">工作类型</label>
+        <select class="form-select" id="locateType" style="width:100%;">
+          <option value="钻孔编录">钻孔编录</option>
+          <option value="地质观察">地质观察</option>
+          <option value="采样">采样</option>
+          <option value="构造观察">构造观察</option>
+          <option value="照片记录">照片记录</option>
+          <option value="其他">其他</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">工作内容描述</label>
+        <textarea class="form-input" id="locateDesc" rows="4" placeholder="描述工作内容、地质现象、发现等..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">记录人</label>
+        <input type="text" class="form-input" id="locateObserver" placeholder="记录人姓名">
+      </div>
+      <div style="display:flex;gap:var(--space-2);margin-top:var(--space-3);">
+        <button class="btn btn-primary" style="flex:1;" onclick="saveLocateRecord()">保存记录</button>
+        <button class="btn btn-secondary" onclick="closeModal('locateRecordModal')">取消</button>
+      </div>
     </div>
   </div>
 </div>
@@ -3974,7 +4050,7 @@ function showToast(message, type) {
 // ============================================================
 var threeScene = null, threeCamera = null, threeRenderer = null, threeControls = null;
 var threeAnimId = null, stratumMeshes = [], oreMeshes = [], drillHoles = [];
-var faultMeshes = [], sectionMeshes = [];
+var faultMeshes = [], faultLines = [], sectionMeshes = [], interpolationMeshes = [];
 var sectionPlane = null, measureLine = null;
 
 function init3DScene() {
@@ -4151,7 +4227,9 @@ function init3DSceneInternal() {
     var fLineMat = new THREE.LineDashedMaterial({ color: f.color, dashSize: 8, gapSize: 4, linewidth: 2 });
     var fLine = new THREE.Line(fLineGeo, fLineMat);
     fLine.computeLineDistances();
+    fLine.userData = { name: f.name, type: 'faultLine' };
     threeScene.add(fLine);
+    faultLines.push(fLine);
   });
 
   // === 默认钻孔 ===
@@ -5089,28 +5167,15 @@ function showDataModal(title, bodyHtml) {
   document.body.appendChild(overlay);
 }
 
-// 可视化图表生成
-function generateChart(type) {
-  var canvases = {
-    column: 'chartColumn', section: 'chartSection', contour: 'chartContour',
-    rose: 'chartRose', piper: 'chartPiper', grade: 'chartGrade'
-  };
-  var id = canvases[type];
-  if (!id) { showToast('未知图表类型: ' + type, 'warning'); return; }
-  var canvas = document.getElementById(id);
-  if (!canvas) { showToast('画布未找到', 'warning'); return; }
-  var ctx = canvas.getContext('2d');
-  var w = canvas.width, h = canvas.height;
+// 通用图表绘制核心 - 自适应canvas尺寸
+function drawChartCore(type, ctx, w, h) {
   ctx.clearRect(0, 0, w, h);
-
-  // 提示文字
-  ctx.fillStyle = '#64748b';
-  ctx.font = '10px sans-serif';
   ctx.textAlign = 'center';
-  showToast('正在生成' + type + '图...', 'info');
+  var scale = Math.min(w / 400, h / 200);
+  var fontBase = Math.round(10 * scale);
 
   if (type === 'column') {
-    // 钻孔柱状图 - 5个钻孔的地层柱
+    // 钻孔柱状图
     var drills = [
       { id: 'ZK001', layers: [['#8b6f47',12],['#d4a574',14],['#e88c3a',18],['#b8d670',16],['#6bb8e8',20]] },
       { id: 'ZK002', layers: [['#8b6f47',10],['#d4a574',12],['#e88c3a',22],['#b8d670',14],['#6bb8e8',18],['#50c878',16]] },
@@ -5118,206 +5183,235 @@ function generateChart(type) {
       { id: 'ZK004', layers: [['#8b6f47',8],['#d4a574',14],['#e88c3a',20],['#b8d670',22],['#6bb8e8',24],['#50c878',18],['#b88ce0',16]] },
       { id: 'ZK005', layers: [['#8b6f47',12],['#d4a574',13],['#e88c3a',17],['#b8d670',15],['#6bb8e8',19]] }
     ];
-    var colW = 36, gap = (w - drills.length * colW) / (drills.length + 1);
-    var baseY = h - 20;
+    var colW = 36 * scale, gap = (w - drills.length * colW) / (drills.length + 1);
+    var baseY = h - 20 * scale;
+    var depthScale = (baseY - 10 * scale) / 100;
     drills.forEach(function(d, di) {
       var x = gap + di * (colW + gap);
       var y = baseY;
       d.layers.forEach(function(l) {
-        var lh = l[1] * 1.0;
+        var lh = l[1] * depthScale;
         ctx.fillStyle = l[0];
         ctx.fillRect(x, y - lh, colW, lh);
         ctx.strokeStyle = '#333';
-        ctx.lineWidth = 0.5;
+        ctx.lineWidth = 0.5 * scale;
         ctx.strokeRect(x, y - lh, colW, lh);
         y -= lh;
       });
-      // 钻孔编号
       ctx.fillStyle = '#94a3b8';
-      ctx.font = '9px sans-serif';
-      ctx.fillText(d.id, x + colW/2, baseY + 12);
+      ctx.font = Math.round(9 * scale) + 'px sans-serif';
+      ctx.fillText(d.id, x + colW / 2, baseY + 12 * scale);
     });
     // 深度轴
     ctx.strokeStyle = '#475569';
-    ctx.lineWidth = 1;
+    ctx.lineWidth = scale;
     ctx.beginPath();
-    ctx.moveTo(gap/2, 10);
-    ctx.lineTo(gap/2, baseY);
+    ctx.moveTo(gap / 2, 10 * scale);
+    ctx.lineTo(gap / 2, baseY);
     ctx.stroke();
     ctx.fillStyle = '#64748b';
-    ctx.font = '8px sans-serif';
+    ctx.font = Math.round(8 * scale) + 'px sans-serif';
     ctx.textAlign = 'right';
     for (var d = 0; d <= 100; d += 25) {
-      var dy = baseY - d * 1.0;
-      ctx.fillText(d + 'm', gap/2 - 2, dy + 3);
+      var dy = baseY - d * depthScale;
+      ctx.fillText(d + 'm', gap / 2 - 2 * scale, dy + 3 * scale);
     }
+    // 图例
+    var legendItems = [['#8b6f47','表土'],['#d4a574','砂砾石'],['#e88c3a','砂岩'],['#b8d670','泥岩'],['#6bb8e8','灰岩'],['#50c878','页岩'],['#b88ce0','灰岩2']];
+    ctx.textAlign = 'left';
+    legendItems.forEach(function(li, i) {
+      var lx = w - 100 * scale, ly = 15 * scale + i * 14 * scale;
+      ctx.fillStyle = li[0];
+      ctx.fillRect(lx, ly, 10 * scale, 10 * scale);
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = Math.round(8 * scale) + 'px sans-serif';
+      ctx.fillText(li[1], lx + 14 * scale, ly + 8 * scale);
+    });
 
   } else if (type === 'section') {
     // 地质剖面图
     var layers = [
-      { color: '#8b6f47', y: 170, name: '表土' },
-      { color: '#d4a574', y: 155, name: '砂砾石' },
-      { color: '#e88c3a', y: 135, name: '砂岩' },
-      { color: '#b8d670', y: 110, name: '泥岩' },
-      { color: '#6bb8e8', y: 80, name: '灰岩' },
-      { color: '#50c878', y: 50, name: '页岩' }
+      { color: '#8b6f47', yR: 0.85, name: '表土' },
+      { color: '#d4a574', yR: 0.775, name: '砂砾石' },
+      { color: '#e88c3a', yR: 0.675, name: '砂岩' },
+      { color: '#b8d670', yR: 0.55, name: '泥岩' },
+      { color: '#6bb8e8', yR: 0.40, name: '灰岩' },
+      { color: '#50c878', yR: 0.25, name: '页岩' }
     ];
     layers.forEach(function(l, i) {
-      var nextY = i < layers.length - 1 ? layers[i+1].y : 0;
+      var nextYR = i < layers.length - 1 ? layers[i + 1].yR : 0;
+      var yPx = l.yR * h, nextYPx = nextYR * h;
       ctx.fillStyle = l.color;
       ctx.globalAlpha = 0.7;
       ctx.beginPath();
-      ctx.moveTo(0, l.y);
-      for (var x = 0; x <= w; x += 20) {
-        ctx.lineTo(x, l.y + Math.sin(x * 0.03 + i) * 5);
+      ctx.moveTo(0, yPx);
+      for (var x = 0; x <= w; x += 20 * scale) {
+        ctx.lineTo(x, yPx + Math.sin(x * 0.03 + i) * 5 * scale);
       }
-      ctx.lineTo(w, nextY);
-      ctx.lineTo(0, nextY);
+      ctx.lineTo(w, nextYPx);
+      ctx.lineTo(0, nextYPx);
       ctx.closePath();
       ctx.fill();
       ctx.globalAlpha = 1;
+      // 地层标注
+      ctx.fillStyle = '#fff';
+      ctx.font = Math.round(9 * scale) + 'px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(l.name, 10 * scale, (yPx + nextYPx) / 2);
     });
     // 钻孔线
-    var drillX = [80, 180, 280];
+    var drillX = [0.2, 0.45, 0.7].map(function(r) { return r * w; });
     drillX.forEach(function(dx) {
       ctx.strokeStyle = '#00d4ff';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([4, 3]);
+      ctx.lineWidth = scale;
+      ctx.setLineDash([4 * scale, 3 * scale]);
       ctx.beginPath();
-      ctx.moveTo(dx, 10);
-      ctx.lineTo(dx, h - 10);
+      ctx.moveTo(dx, 10 * scale);
+      ctx.lineTo(dx, h - 10 * scale);
       ctx.stroke();
       ctx.setLineDash([]);
-      // 钻孔点
       ctx.fillStyle = '#ef4444';
       ctx.beginPath();
-      ctx.arc(dx, 120, 3, 0, Math.PI * 2);
+      ctx.arc(dx, 0.6 * h, 3 * scale, 0, Math.PI * 2);
       ctx.fill();
+      ctx.fillStyle = '#00d4ff';
+      ctx.font = Math.round(8 * scale) + 'px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('ZK00' + (drillX.indexOf(dx) + 1), dx, 8 * scale);
     });
     // 矿体
     ctx.fillStyle = '#ffd700';
     ctx.globalAlpha = 0.6;
     ctx.beginPath();
-    ctx.ellipse(150, 100, 50, 15, 0, 0, Math.PI * 2);
+    ctx.ellipse(0.375 * w, 0.5 * h, 50 * scale, 15 * scale, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
+    ctx.fillStyle = '#ffd700';
+    ctx.font = Math.round(9 * scale) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('I号矿体', 0.375 * w, 0.5 * h);
 
   } else if (type === 'contour') {
-    // 等值线图 - 同心椭圆
-    var cx = w/2, cy = h/2;
-    // 渐变背景
-    var grad = ctx.createRadialGradient(cx, cy, 5, cx, cy, 100);
+    // 等值线图
+    var cx = w / 2, cy = h / 2;
+    var maxR = Math.min(w, h) * 0.4;
+    var grad = ctx.createRadialGradient(cx, cy, 5, cx, cy, maxR);
     grad.addColorStop(0, 'rgba(239,68,68,0.5)');
     grad.addColorStop(0.5, 'rgba(245,158,11,0.3)');
     grad.addColorStop(1, 'rgba(16,185,129,0.1)');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, w, h);
-    // 等值线
     var contours = [
-      { rx: 90, ry: 70, val: '0.5%' },
-      { rx: 70, ry: 55, val: '1.0%' },
-      { rx: 50, ry: 40, val: '1.5%' },
-      { rx: 32, ry: 25, val: '2.0%' },
-      { rx: 16, ry: 12, val: '2.5%' }
+      { rR: 0.9, val: '0.5%' }, { rR: 0.7, val: '1.0%' },
+      { rR: 0.5, val: '1.5%' }, { rR: 0.32, val: '2.0%' },
+      { rR: 0.16, val: '2.5%' }
     ];
     contours.forEach(function(c, i) {
+      var rx = c.rR * maxR, ry = c.rR * maxR * 0.78;
       ctx.strokeStyle = i < 2 ? '#ef4444' : i < 4 ? '#f59e0b' : '#10b981';
-      ctx.lineWidth = 0.8 + i * 0.2;
+      ctx.lineWidth = (0.8 + i * 0.2) * scale;
       ctx.beginPath();
-      ctx.ellipse(cx, cy, c.rx, c.ry, 0, 0, Math.PI * 2);
+      ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
       ctx.stroke();
-      // 标注
       ctx.fillStyle = ctx.strokeStyle;
-      ctx.font = '8px sans-serif';
+      ctx.font = Math.round(8 * scale) + 'px sans-serif';
       ctx.textAlign = 'left';
-      ctx.fillText(c.val, cx + c.rx + 2, cy);
+      ctx.fillText(c.val, cx + rx + 2 * scale, cy);
     });
-    // 中心点
     ctx.fillStyle = '#ef4444';
     ctx.beginPath();
-    ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 2 * scale, 0, Math.PI * 2);
     ctx.fill();
+    // 钻孔点
+    var drillPts = [[0.3,0.35],[0.65,0.3],[0.7,0.65],[0.35,0.7],[0.5,0.5]];
+    drillPts.forEach(function(p) {
+      ctx.fillStyle = '#00d4ff';
+      ctx.beginPath();
+      ctx.arc(p[0] * w, p[1] * h, 3 * scale, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    ctx.fillStyle = '#94a3b8';
+    ctx.font = Math.round(9 * scale) + 'px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('品位等值线图 (Au g/t)', cx, h - 5 * scale);
 
   } else if (type === 'rose') {
     // 节理玫瑰图
-    var rcx = w/2, rcy = h/2;
-    var maxR = 75;
-    // 同心圆
-    [25, 50, 75].forEach(function(r) {
+    var rcx = w / 2, rcy = h / 2;
+    var maxR = Math.min(w, h) * 0.375;
+    [0.33, 0.66, 1].forEach(function(rR) {
       ctx.strokeStyle = '#334155';
-      ctx.lineWidth = 0.5;
+      ctx.lineWidth = 0.5 * scale;
       ctx.beginPath();
-      ctx.arc(rcx, rcy, r, 0, Math.PI * 2);
+      ctx.arc(rcx, rcy, maxR * rR, 0, Math.PI * 2);
       ctx.stroke();
     });
-    // 十字线
     ctx.beginPath();
     ctx.moveTo(rcx, rcy - maxR); ctx.lineTo(rcx, rcy + maxR);
     ctx.moveTo(rcx - maxR, rcy); ctx.lineTo(rcx + maxR, rcy);
     ctx.stroke();
-    // 方位数据
     var roseData = [
-      { angle: 0,   len: 55, color: '#00d4ff' },
-      { angle: 45,  len: 35, color: '#7c3aed' },
-      { angle: 90,  len: 70, color: '#00d4ff' },
-      { angle: 135, len: 40, color: '#f59e0b' },
-      { angle: 180, len: 50, color: '#00d4ff' },
-      { angle: 225, len: 60, color: '#7c3aed' },
-      { angle: 270, len: 45, color: '#10b981' },
-      { angle: 315, len: 30, color: '#f59e0b' }
+      { angle: 0, lenR: 0.73, color: '#00d4ff' },
+      { angle: 45, lenR: 0.47, color: '#7c3aed' },
+      { angle: 90, lenR: 0.93, color: '#00d4ff' },
+      { angle: 135, lenR: 0.53, color: '#f59e0b' },
+      { angle: 180, lenR: 0.67, color: '#00d4ff' },
+      { angle: 225, lenR: 0.80, color: '#7c3aed' },
+      { angle: 270, lenR: 0.60, color: '#10b981' },
+      { angle: 315, lenR: 0.40, color: '#f59e0b' }
     ];
     roseData.forEach(function(d) {
+      var dLen = d.lenR * maxR;
       var rad = (d.angle - 90) * Math.PI / 180;
       var spread = 22.5 * Math.PI / 180;
-      var x1 = rcx + Math.cos(rad - spread) * d.len;
-      var y1 = rcy + Math.sin(rad - spread) * d.len;
-      var x2 = rcx + Math.cos(rad + spread) * d.len;
-      var y2 = rcy + Math.sin(rad + spread) * d.len;
       ctx.fillStyle = d.color;
       ctx.globalAlpha = 0.6;
       ctx.beginPath();
       ctx.moveTo(rcx, rcy);
-      ctx.arc(rcx, rcy, d.len, rad - spread, rad + spread);
+      ctx.arc(rcx, rcy, dLen, rad - spread, rad + spread);
       ctx.closePath();
       ctx.fill();
       ctx.globalAlpha = 1;
     });
-    // N标记
     ctx.fillStyle = '#94a3b8';
-    ctx.font = '10px sans-serif';
+    ctx.font = Math.round(10 * scale) + 'px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('N', rcx, rcy - maxR - 4);
+    ctx.fillText('N', rcx, rcy - maxR - 4 * scale);
+    ctx.fillText('S', rcx, rcy + maxR + 12 * scale);
+    ctx.fillText('W', rcx - maxR - 8 * scale, rcy + 3 * scale);
+    ctx.fillText('E', rcx + maxR + 8 * scale, rcy + 3 * scale);
 
   } else if (type === 'piper') {
     // Piper三线图
+    var pScale = Math.min(w / 220, h / 180);
+    var ox = (w - 220 * pScale) / 2, oy = (h - 180 * pScale) / 2;
+    function PX(x) { return ox + x * pScale; }
+    function PY(y) { return oy + y * pScale; }
     var tl = { x: 60, y: 160 }, tr = { x: 160, y: 160 }, tc = { x: 110, y: 60 };
     var bl = { x: 10, y: 160 }, br = { x: 210, y: 160 };
-    // 三个菱形
     function drawTriangle(p1, p2, p3) {
       ctx.strokeStyle = '#475569';
-      ctx.lineWidth = 1;
+      ctx.lineWidth = pScale;
       ctx.beginPath();
-      ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.lineTo(p3.x, p3.y);
+      ctx.moveTo(PX(p1.x), PY(p1.y)); ctx.lineTo(PX(p2.x), PY(p2.y)); ctx.lineTo(PX(p3.x), PY(p3.y));
       ctx.closePath();
       ctx.stroke();
     }
     drawTriangle(bl, tl, { x: 35, y: 80 });
     drawTriangle(tr, br, { x: 185, y: 80 });
     drawTriangle(tl, tr, tc);
-    // 内部网格
     ctx.strokeStyle = '#334155';
-    ctx.lineWidth = 0.3;
-    ctx.setLineDash([2, 3]);
+    ctx.lineWidth = 0.3 * pScale;
+    ctx.setLineDash([2 * pScale, 3 * pScale]);
     for (var i = 1; i < 4; i++) {
       ctx.beginPath();
-      ctx.moveTo(35 + i*6, 80 + i*20); ctx.lineTo(60 + i*6, 160);
+      ctx.moveTo(PX(35 + i * 6), PY(80 + i * 20)); ctx.lineTo(PX(60 + i * 6), PY(160));
       ctx.stroke();
       ctx.beginPath();
-      ctx.moveTo(185 - i*6, 80 + i*20); ctx.lineTo(160 - i*6, 160);
+      ctx.moveTo(PX(185 - i * 6), PY(80 + i * 20)); ctx.lineTo(PX(160 - i * 6), PY(160));
       ctx.stroke();
     }
     ctx.setLineDash([]);
-    // 数据点
     var piperPoints = [
       { x: 45, y: 130, color: '#00d4ff' },
       { x: 170, y: 125, color: '#7c3aed' },
@@ -5328,19 +5422,18 @@ function generateChart(type) {
     piperPoints.forEach(function(p) {
       ctx.fillStyle = p.color;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+      ctx.arc(PX(p.x), PY(p.y), 4 * pScale, 0, Math.PI * 2);
       ctx.fill();
     });
-    // 标注
     ctx.fillStyle = '#64748b';
-    ctx.font = '8px sans-serif';
+    ctx.font = Math.round(8 * pScale) + 'px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('Ca²⁺', 20, 175);
-    ctx.fillText('Mg²⁺', 60, 175);
-    ctx.fillText('Na⁺+K⁺', 110, 55);
-    ctx.fillText('Cl⁻', 200, 175);
-    ctx.fillText('SO₄²⁻', 160, 175);
-    ctx.fillText('HCO₃⁻', 110, 175);
+    ctx.fillText('Ca²⁺', PX(20), PY(175));
+    ctx.fillText('Mg²⁺', PX(60), PY(175));
+    ctx.fillText('Na⁺+K⁺', PX(110), PY(55));
+    ctx.fillText('Cl⁻', PX(200), PY(175));
+    ctx.fillText('SO₄²⁻', PX(160), PY(175));
+    ctx.fillText('HCO₃⁻', PX(110), PY(175));
 
   } else if (type === 'grade') {
     // 品位分布直方图
@@ -5352,50 +5445,86 @@ function generateChart(type) {
       { range: '2.0-2.5', count: 7, color: '#ef4444' },
       { range: '>2.5', count: 3, color: '#dc2626' }
     ];
-    var barW = (w - 40) / grades.length;
+    var barW = (w - 40 * scale) / grades.length;
     var maxCount = 12;
-    var chartH = h - 35;
+    var chartH = h - 35 * scale;
     grades.forEach(function(g, i) {
       var bh = (g.count / maxCount) * chartH;
-      var bx = 20 + i * barW;
-      var by = h - 25 - bh;
-      // 渐变柱
+      var bx = 20 * scale + i * barW;
+      var by = h - 25 * scale - bh;
       var bg = ctx.createLinearGradient(bx, by, bx, by + bh);
       bg.addColorStop(0, g.color);
       bg.addColorStop(1, g.color + '33');
       ctx.fillStyle = bg;
-      ctx.fillRect(bx + 4, by, barW - 8, bh);
-      // 数值
+      ctx.fillRect(bx + 4 * scale, by, barW - 8 * scale, bh);
       ctx.fillStyle = g.color;
-      ctx.font = '10px sans-serif';
+      ctx.font = Math.round(10 * scale) + 'px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(g.count, bx + barW/2, by - 4);
-      // 标签
+      ctx.fillText(g.count, bx + barW / 2, by - 4 * scale);
       ctx.fillStyle = '#94a3b8';
-      ctx.font = '8px sans-serif';
-      ctx.fillText(g.range, bx + barW/2, h - 10);
+      ctx.font = Math.round(8 * scale) + 'px sans-serif';
+      ctx.fillText(g.range + ' g/t', bx + barW / 2, h - 10 * scale);
     });
-    // Y轴
     ctx.strokeStyle = '#475569';
-    ctx.lineWidth = 0.5;
+    ctx.lineWidth = 0.5 * scale;
     ctx.beginPath();
-    ctx.moveTo(15, 10); ctx.lineTo(15, h - 25);
+    ctx.moveTo(15 * scale, 10 * scale); ctx.lineTo(15 * scale, h - 25 * scale);
     ctx.stroke();
     ctx.fillStyle = '#64748b';
-    ctx.font = '8px sans-serif';
+    ctx.font = Math.round(8 * scale) + 'px sans-serif';
     ctx.textAlign = 'right';
-    ctx.fillText('频数', 12, 8);
+    ctx.fillText('频数', 12 * scale, 8 * scale);
+    ctx.fillText('品位(g/t)', w / 2, h - 2 * scale);
   }
+}
 
+// 可视化图表生成
+function generateChart(type) {
+  var canvases = {
+    column: 'chartColumn', section: 'chartSection', contour: 'chartContour',
+    rose: 'chartRose', piper: 'chartPiper', grade: 'chartGrade'
+  };
+  var id = canvases[type];
+  if (!id) { showToast('未知图表类型: ' + type, 'warning'); return; }
+  var canvas = document.getElementById(id);
+  if (!canvas) { showToast('画布未找到', 'warning'); return; }
+  showToast('正在生成' + type + '图...', 'info');
+  drawChartCore(type, canvas.getContext('2d'), canvas.width, canvas.height);
   setTimeout(function() {
     showToast(type + '图生成完成', 'success');
-    // 更新已生成图表计数
     var countEl = document.getElementById('generatedChartCount');
     if (countEl) {
       var count = parseInt(countEl.textContent) || 0;
       countEl.textContent = count + 1;
     }
   }, 500);
+}
+
+// 大版图查看
+function openChartLarge(type) {
+  var titles = {
+    column: '钻孔柱状图（大图）', section: '地质剖面图（大图）',
+    contour: '等值线图（大图）', rose: '节理玫瑰图（大图）',
+    piper: 'Piper三线图（大图）', grade: '品位分布图（大图）'
+  };
+  var titleEl = document.getElementById('chartLargeTitle');
+  if (titleEl) titleEl.textContent = titles[type] || '图表查看';
+  var canvas = document.getElementById('chartLargeCanvas');
+  if (!canvas) { showToast('大图画布未找到', 'warning'); return; }
+  drawChartCore(type, canvas.getContext('2d'), canvas.width, canvas.height);
+  document.getElementById('chartLargeModal').classList.add('show');
+  window._currentLargeChart = type;
+}
+
+// 下载大版图
+function downloadChartLarge() {
+  var canvas = document.getElementById('chartLargeCanvas');
+  if (!canvas) return;
+  var link = document.createElement('a');
+  link.download = (window._currentLargeChart || 'chart') + '_大图.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+  showToast('图表已下载', 'success');
 }
 
 // 剖面操作（旧版占位，新实现在文件后部）
@@ -5437,10 +5566,96 @@ function editLayer(btn) {
 
 // 建模工具
 function startModeling(type) {
-  showToast('正在执行: ' + type + '...', 'info');
-  setTimeout(function() {
-    showToast(type + '完成', 'success');
-  }, 1500);
+  if (!threeScene) { showToast('3D场景未就绪', 'warning'); return; }
+
+  if (type === '断层构造') {
+    // 切换断层显示/隐藏
+    var faultVisible = faultMeshes.length > 0 ? faultMeshes[0].visible : true;
+    faultMeshes.forEach(function(m) { m.visible = !faultVisible; });
+    faultLines.forEach(function(l) { l.visible = !faultVisible; });
+    showToast(faultVisible ? '断层构造已隐藏' : '断层构造已显示', 'success');
+
+  } else if (type === '属性插值') {
+    // 切换属性插值可视化
+    if (interpolationMeshes.length > 0) {
+      // 已存在，移除
+      interpolationMeshes.forEach(function(m) { threeScene.remove(m); });
+      interpolationMeshes = [];
+      showToast('属性插值已移除', 'info');
+    } else {
+      // 创建属性插值点云（模拟品位插值结果）
+      showToast('正在进行属性插值计算...', 'info');
+      var interpColors = [
+        { color: 0x00ff88, grade: 0.3 }, { color: 0x22c55e, grade: 0.6 },
+        { color: 0x84cc16, grade: 0.9 }, { color: 0xeab308, grade: 1.2 },
+        { color: 0xf97316, grade: 1.6 }, { color: 0xef4444, grade: 2.0 },
+        { color: 0xdc2626, grade: 2.5 }
+      ];
+      // 在矿体周围生成插值点
+      var oreCenters = [[10,-10,-5], [-50,-30,30], [60,-20,-40]];
+      oreCenters.forEach(function(oc, oi) {
+        for (var i = 0; i < 30; i++) {
+          var angle = Math.random() * Math.PI * 2;
+          var r = 15 + Math.random() * 40;
+          var px = oc[0] + Math.cos(angle) * r;
+          var py = oc[1] + (Math.random() - 0.5) * 30;
+          var pz = oc[2] + Math.sin(angle) * r;
+          // 根据距离矿体中心的远近决定品位（越近品位越高）
+          var dist = Math.sqrt((px-oc[0])**2 + (py-oc[1])**2 + (pz-oc[2])**2);
+          var gradeVal = Math.max(0.1, 2.8 - dist * 0.04);
+          var colorIdx = Math.min(interpColors.length - 1, Math.floor(gradeVal / 0.4));
+          var c = interpColors[colorIdx];
+
+          var sphereGeo = new THREE.SphereGeometry(1.5, 8, 6);
+          var sphereMat = new THREE.MeshBasicMaterial({
+            color: c.color, transparent: true, opacity: 0.7
+          });
+          var sphere = new THREE.Mesh(sphereGeo, sphereMat);
+          sphere.position.set(px, py, pz);
+          sphere.userData = { type: 'interpolation', grade: gradeVal.toFixed(2), oreIdx: oi };
+          threeScene.add(sphere);
+          interpolationMeshes.push(sphere);
+        }
+      });
+      showToast('属性插值完成: 已生成 ' + interpolationMeshes.length + ' 个插值点', 'success');
+    }
+
+  } else if (type === '等值面') {
+    // 切换等值面显示
+    if (interpolationMeshes.length > 0) {
+      var isVisible = interpolationMeshes[0].visible;
+      interpolationMeshes.forEach(function(m) { m.visible = !isVisible; });
+      showToast(isVisible ? '等值面已隐藏' : '等值面已显示', 'success');
+    } else {
+      showToast('请先执行属性插值', 'warning');
+    }
+
+  } else if (type === '地层建模') {
+    showToast('正在执行: 地层建模...', 'info');
+    // 重置地层不透明度
+    stratumMeshes.forEach(function(m, i) {
+      m.material.opacity = 0.75;
+      m.material.wireframe = false;
+      m.visible = true;
+    });
+    setTimeout(function() { showToast('地层建模完成', 'success'); }, 1000);
+
+  } else if (type === '矿体圈定') {
+    showToast('正在执行: 矿体圈定...', 'info');
+    // 突出显示矿体
+    oreMeshes.forEach(function(m) {
+      m.material.opacity = 0.95;
+      m.material.emissiveIntensity = 0.5;
+    });
+    setTimeout(function() { showToast('矿体圈定完成', 'success'); }, 1000);
+
+  } else if (type === '剖切分析') {
+    toggleSection();
+
+  } else {
+    showToast('正在执行: ' + type + '...', 'info');
+    setTimeout(function() { showToast(type + '完成', 'success'); }, 1500);
+  }
 }
 
 // 项目管理
@@ -6109,6 +6324,14 @@ function autoBindButtons() {
     }
   });
 
+  // 3D视图快捷操作按钮（qa-btn）
+  document.querySelectorAll('.qa-btn').forEach(function(btn) {
+    if (!btn.getAttribute('onclick')) {
+      var title = btn.getAttribute('title') || '';
+      if (title) btn.setAttribute('onclick', 'startModeling("' + title + '")');
+    }
+  });
+
   // 数据管理页按钮
   var dataView = document.getElementById('viewData');
   if (dataView) {
@@ -6302,7 +6525,7 @@ var gridHelperRef = null;
 var axesHelperRef = null;
 
 function initPropertyPanelControls() {
-  // 不透明度滑块
+  // 不透明度滑块 - 只控制地层，矿体保持独立不透明度
   var opacitySlider = document.getElementById('opacitySlider');
   if (opacitySlider) {
     opacitySlider.addEventListener('input', function() {
@@ -6310,8 +6533,9 @@ function initPropertyPanelControls() {
       var opacityVal = document.getElementById('opacityValue');
       if (opacityVal) opacityVal.textContent = val + '%';
       var opacity = val / 100;
+      // 仅控制地层透明度，矿体始终保持清晰可见
       stratumMeshes.forEach(function(m) { m.material.opacity = opacity; });
-      oreMeshes.forEach(function(m) { m.material.opacity = opacity; });
+      // 矿体不透明度保持初始值不变（已圈定0.88/推测0.6），确保矿体始终可见
     });
   }
 
@@ -6366,16 +6590,16 @@ function captureSceneRefs() {
   });
 }
 
-// 线框模式
+// 线框模式 - 只控制地层，矿体保持实体
 function toggleWireframeMode(el) {
   el.classList.toggle('active');
   var active = el.classList.contains('active');
   stratumMeshes.forEach(function(m) { m.material.wireframe = active; });
-  oreMeshes.forEach(function(m) { m.material.wireframe = active; });
-  showToast(active ? '线框模式已开启' : '线框模式已关闭');
+  // 矿体不切换线框模式，保持实体显示确保清晰可见
+  showToast(active ? '线框模式已开启（仅地层）' : '线框模式已关闭');
 }
 
-// 平滑着色
+// 平滑着色 - 只控制地层，矿体始终保持平滑
 function toggleSmoothShading(el) {
   el.classList.toggle('active');
   var active = el.classList.contains('active');
@@ -6383,11 +6607,8 @@ function toggleSmoothShading(el) {
     m.material.flatShading = !active;
     m.material.needsUpdate = true;
   });
-  oreMeshes.forEach(function(m) {
-    m.material.flatShading = !active;
-    m.material.needsUpdate = true;
-  });
-  showToast(active ? '平滑着色已开启' : '平滑着色已关闭');
+  // 矿体始终保持平滑着色，确保表面光滑无网格感
+  showToast(active ? '平滑着色已开启（仅地层）' : '平滑着色已关闭');
 }
 
 // 显示网格
@@ -6662,6 +6883,141 @@ function saveMapMarker(lat, lng) {
   customMarkers.push({ marker: marker, lat: lat, lng: lng, location: location, type: type, desc: desc, date: date });
   closeMarkerForm();
   showToast('✅ 已在「' + location + '」添加' + type, 'success');
+}
+
+// --- 地图定位工作记录功能 ---
+var locateMode = false;
+var locateLatlng = null;
+var locateMarker = null;
+
+function startMapLocate() {
+  // 切换到地图视图
+  var mapNav = document.querySelector('[onclick*="switchView"][onclick*="map"]') ||
+               document.querySelector('.nav-item[onclick*="map"]');
+  if (mapNav) {
+    switchView('map', mapNav);
+  } else {
+    // 手动切换
+    document.querySelectorAll('.view-panel').forEach(function(v) { v.style.display = 'none'; });
+    var mapPanel = document.getElementById('viewMap');
+    if (mapPanel) mapPanel.style.display = '';
+  }
+
+  // 确保地图已初始化
+  setTimeout(function() {
+    if (!leafletMap) {
+      showToast('地图正在加载，请稍候...', 'info');
+      return;
+    }
+    leafletMap.invalidateSize();
+
+    // 进入定位模式
+    locateMode = true;
+    var container = leafletMap.getContainer();
+    container.style.cursor = 'crosshair';
+
+    // 添加提示
+    var tipDiv = document.createElement('div');
+    tipDiv.id = 'locateTip';
+    tipDiv.style.cssText = 'position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1000;background:rgba(20,184,166,0.95);color:#fff;padding:8px 20px;border-radius:20px;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,0.3);pointer-events:none;';
+    tipDiv.innerHTML = '📍 请在地图上点击一个点进行定位';
+    container.appendChild(tipDiv);
+
+    // 移除之前的点击事件，添加定位点击事件
+    leafletMap.off('click');
+    leafletMap.on('click', function(e) {
+      if (!locateMode) return;
+      locateLatlng = e.latlng;
+
+      // 移除之前的定位标记
+      if (locateMarker) leafletMap.removeLayer(locateMarker);
+
+      // 添加定位标记（脉冲效果）
+      locateMarker = L.marker([e.latlng.lat, e.latlng.lng], {
+        icon: L.divIcon({
+          className: 'locate-marker',
+          html: '<div style="width:24px;height:24px;background:#14b8a6;border:3px solid #fff;border-radius:50%;box-shadow:0 0 0 4px rgba(20,184,166,0.3),0 2px 8px rgba(0,0,0,0.4);animation:locatePulse 1.5s infinite;"></div>',
+          iconSize: [24, 24],
+          iconAnchor: [12, 12]
+        })
+      }).addTo(leafletMap);
+
+      // 退出定位模式
+      locateMode = false;
+      container.style.cursor = '';
+      var tip = document.getElementById('locateTip');
+      if (tip) tip.remove();
+
+      // 恢复地图点击事件
+      leafletMap.off('click');
+      setTimeout(function() { initMapClickHandler(); }, 100);
+
+      // 显示坐标并打开记录模态框
+      var coordEl = document.getElementById('locateCoord');
+      if (coordEl) coordEl.textContent = e.latlng.lat.toFixed(6) + ', ' + e.latlng.lng.toFixed(6);
+      document.getElementById('locateRecordModal').classList.add('show');
+
+      showToast('已定位到选定坐标', 'success');
+    });
+
+    showToast('请在地图上点击一个点进行定位', 'info');
+  }, 300);
+}
+
+function saveLocateRecord() {
+  if (!locateLatlng) { showToast('请先在地图上选择定位点', 'warning'); return; }
+
+  var name = document.getElementById('locateName');
+  var type = document.getElementById('locateType');
+  var desc = document.getElementById('locateDesc');
+  var observer = document.getElementById('locateObserver');
+
+  var locName = (name && name.value.trim()) ? name.value.trim() : '未命名点位';
+  var locType = (type && type.value) ? type.value : '其他';
+  var locDesc = (desc && desc.value.trim()) ? desc.value.trim() : '';
+  var locObserver = (observer && observer.value.trim()) ? observer.value.trim() : '匿名';
+
+  if (!locDesc) { showToast('请填写工作内容描述', 'warning'); return; }
+
+  // 在地图上添加永久标记
+  if (leafletMap && locateMarker) {
+    var typeColors = {
+      '钻孔编录': '#f59e0b', '地质观察': '#ef4444', '采样': '#10b981',
+      '构造观察': '#7c3aed', '照片记录': '#00d4ff', '其他': '#94a3b8'
+    };
+    var color = typeColors[locType] || '#14b8a6';
+
+    // 替换为带信息的标记
+    leafletMap.removeLayer(locateMarker);
+    var marker = L.circleMarker([locateLatlng.lat, locateLatlng.lng], {
+      radius: 8, fillColor: color, color: '#fff', weight: 2, opacity: 1, fillOpacity: 0.9
+    }).addTo(leafletMap);
+
+    var dateStr = new Date().toLocaleString('zh-CN');
+    marker.bindPopup(
+      '<div style="font-size:13px;line-height:1.6;min-width:200px;">' +
+      '<b style="color:' + color + ';font-size:14px;">📍 ' + locName + '</b><br>' +
+      '<span style="color:#666;">类型: ' + locType + '</span><br>' +
+      '<span style="color:#666;">坐标: ' + locateLatlng.lat.toFixed(6) + ', ' + locateLatlng.lng.toFixed(6) + '</span><br>' +
+      '<span style="color:#666;">记录人: ' + locObserver + '</span><br>' +
+      '<span style="color:#666;">时间: ' + dateStr + '</span><br>' +
+      '<span style="color:#94a3b8;margin-top:4px;display:block;">' + locDesc + '</span>' +
+      '</div>'
+    );
+
+    customMarkers.push({
+      marker: marker, lat: locateLatlng.lat, lng: locateLatlng.lng,
+      location: locName, type: locType, desc: locDesc, date: dateStr
+    });
+  }
+
+  // 清空表单
+  if (name) name.value = '';
+  if (desc) desc.value = '';
+  if (observer) observer.value = '';
+
+  closeModal('locateRecordModal');
+  showToast('工作记录已保存: ' + locName, 'success');
 }
 
 // --- 4. 储量估算 - 不同方法不同结果 ---
