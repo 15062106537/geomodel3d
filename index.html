@@ -9,6 +9,8 @@
 <script src="OrbitControls.js"></script>
 <link rel="stylesheet" href="leaflet.css">
 <script src="leaflet.js"></script>
+<!-- Supabase 认证SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ============================================================
    GeoModel3D Pro — 智能地质建模平台
@@ -2854,23 +2856,23 @@ body::after {
       <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);">
         <div class="stat-card fade-in-up stagger-1">
           <div class="stat-icon blue">📊</div>
-          <div class="stat-value">247</div>
-          <div class="stat-label">柱状图</div>
+          <div class="stat-value">6</div>
+          <div class="stat-label">可生成图表</div>
         </div>
         <div class="stat-card fade-in-up stagger-2">
           <div class="stat-icon purple">📐</div>
-          <div class="stat-value">12</div>
-          <div class="stat-label">剖面图</div>
+          <div class="stat-value" id="generatedChartCount">0</div>
+          <div class="stat-label">已生成图表</div>
         </div>
         <div class="stat-card fade-in-up stagger-3">
           <div class="stat-icon green">〰️</div>
-          <div class="stat-value">8</div>
-          <div class="stat-label">等值线图</div>
+          <div class="stat-value">247</div>
+          <div class="stat-label">数据点</div>
         </div>
         <div class="stat-card fade-in-up stagger-4">
-          <div class="stat-icon orange">🌹</div>
-          <div class="stat-value">15</div>
-          <div class="stat-label">玫瑰图</div>
+          <div class="stat-icon orange">📁</div>
+          <div class="stat-value">17</div>
+          <div class="stat-label">钻孔数据</div>
         </div>
       </div>
 
@@ -2981,12 +2983,12 @@ body::after {
           <div class="card-body">
             <div class="form-group">
               <label class="form-label">估算方法</label>
-              <select class="form-select">
-                <option>距离幂次反比法 (IDW)</option>
-                <option>克里格法 (Kriging)</option>
-                <option>径向基函数 (RBF)</option>
-                <option>最近邻法</option>
-                <option>三角剖分法</option>
+              <select class="form-select" id="estimationMethod" onchange="previewEstimation()">
+                <option value="idw">距离幂次反比法 (IDW)</option>
+                <option value="kriging">克里格法 (Kriging)</option>
+                <option value="rbf">径向基函数 (RBF)</option>
+                <option value="nearest">最近邻法</option>
+                <option value="triangular">三角剖分法</option>
               </select>
             </div>
             <div class="form-row">
@@ -3124,8 +3126,8 @@ body::after {
           <div class="card-header">
             <div class="card-title"><span class="icon">✂️</span> 剖面视图</div>
             <div class="card-actions">
-              <button class="btn btn-sm btn-secondary">导出图片</button>
-              <button class="btn btn-sm btn-primary">新建剖面</button>
+              <button class="btn btn-sm btn-secondary" onclick="exportSectionImage()">导出图片</button>
+              <button class="btn btn-sm btn-primary" onclick="newSection()">新建剖面</button>
             </div>
           </div>
           <div class="card-body" style="height:400px;background:linear-gradient(180deg,#1a2a3a,#0d1520);position:relative;overflow:hidden;">
@@ -3148,24 +3150,24 @@ body::after {
           <div class="card-body">
             <div class="form-group">
               <label class="form-label">剖面方向</label>
-              <select class="form-select">
-                <option>A-A' 剖面 (走向)</option>
-                <option>B-B' 剖面 (倾向)</option>
-                <option>自定义方向</option>
+              <select class="form-select" id="sectionDirection" onchange="updateSectionView()">
+                <option value="AA">A-A' 剖面 (走向)</option>
+                <option value="BB">B-B' 剖面 (倾向)</option>
+                <option value="custom">自定义方向</option>
               </select>
             </div>
             <div class="slider-group">
-              <div class="slider-header"><span class="slider-label">剖面位置 X</span><span class="slider-value">1250 m</span></div>
-              <input type="range" class="slider" min="0" max="2000" value="1250">
+              <div class="slider-header"><span class="slider-label">剖面位置 X</span><span class="slider-value" id="sectionPosXValue">1250 m</span></div>
+              <input type="range" class="slider" id="sectionPosXSlider" min="0" max="2000" value="1250" oninput="updateSectionView()">
             </div>
             <div class="slider-group">
-              <div class="slider-header"><span class="slider-label">剖面厚度</span><span class="slider-value">20 m</span></div>
-              <input type="range" class="slider" min="1" max="100" value="20">
+              <div class="slider-header"><span class="slider-label">剖面厚度</span><span class="slider-value" id="sectionThicknessValue">20 m</span></div>
+              <input type="range" class="slider" id="sectionThicknessSlider" min="1" max="100" value="20" oninput="updateSectionView()">
             </div>
-            <div class="toggle-row"><span class="toggle-label">地层界线</span><div class="toggle active" onclick="this.classList.toggle('active')"></div></div>
-            <div class="toggle-row"><span class="toggle-label">矿体轮廓</span><div class="toggle active" onclick="this.classList.toggle('active')"></div></div>
-            <div class="toggle-row"><span class="toggle-label">钻孔标记</span><div class="toggle active" onclick="this.classList.toggle('active')"></div></div>
-            <div class="toggle-row"><span class="toggle-label">品位色阶</span><div class="toggle" onclick="this.classList.toggle('active')"></div></div>
+            <div class="toggle-row"><span class="toggle-label">地层界线</span><div class="toggle active" id="sectionStrataToggle" onclick="toggleSectionLayer('strata', this)"></div></div>
+            <div class="toggle-row"><span class="toggle-label">矿体轮廓</span><div class="toggle active" id="sectionOreToggle" onclick="toggleSectionLayer('ore', this)"></div></div>
+            <div class="toggle-row"><span class="toggle-label">钻孔标记</span><div class="toggle active" id="sectionDrillToggle" onclick="toggleSectionLayer('drill', this)"></div></div>
+            <div class="toggle-row"><span class="toggle-label">品位色阶</span><div class="toggle" id="sectionGradeToggle" onclick="toggleSectionLayer('grade', this)"></div></div>
           </div>
         </div>
       </div>
@@ -3202,7 +3204,7 @@ body::after {
       <div class="card fade-in-up stagger-4">
         <div class="card-header">
           <div class="card-title"><span class="icon">⚙️</span> 报告配置</div>
-          <div class="card-actions"><button class="btn btn-primary">📄 生成报告</button></div>
+          <div class="card-actions"><button class="btn btn-primary" onclick="generateReport()">📄 生成报告</button></div>
         </div>
         <div class="card-body">
           <div class="form-row">
@@ -3328,7 +3330,7 @@ body::after {
                 <option>RAR 压缩包</option>
               </select>
             </div>
-            <button class="btn btn-primary btn-block btn-lg" style="margin-top:var(--space-4);">
+            <button class="btn btn-primary btn-block btn-lg" id="startExportBtn" onclick="startExport()" style="margin-top:var(--space-4);">
               📤 开始导出
             </button>
           </div>
@@ -3347,7 +3349,7 @@ body::after {
           <div class="card-header">
             <div class="card-title"><span class="icon">✍️</span> 语音/文字录入</div>
             <div class="card-actions">
-              <button class="btn btn-sm btn-secondary">🎤 语音</button>
+              <button class="btn btn-sm btn-secondary" id="voiceBtn" onclick="startVoiceInput()">🎤 语音</button>
               <button class="btn btn-sm btn-primary" onclick="generateGeoRecord()">✨ 智能解析</button>
             </div>
           </div>
@@ -3355,9 +3357,9 @@ body::after {
             <textarea class="form-textarea" rows="8" placeholder="在此输入野外口语描述...
 例如：在学校东边300米处，看到肉红色的花岗岩，中粒结构，产状215度角60度..."></textarea>
             <div style="display:flex;gap:var(--space-2);margin-top:var(--space-3);">
-              <button class="btn btn-sm btn-secondary">📝 填表示例</button>
-              <button class="btn btn-sm btn-secondary">📍 定位当前位置</button>
-              <button class="btn btn-sm btn-secondary">📷 插入照片</button>
+              <button class="btn btn-sm btn-secondary" onclick="fillSampleForm()">📝 填表示例</button>
+              <button class="btn btn-sm btn-secondary" onclick="locateCurrent()">📍 定位当前位置</button>
+              <button class="btn btn-sm btn-secondary" onclick="insertPhoto()">📷 插入照片</button>
             </div>
           </div>
         </div>
@@ -3380,9 +3382,9 @@ body::after {
               <div>倾角：60°</div>
             </div>
             <div style="display:flex;gap:var(--space-2);margin-top:var(--space-3);">
-              <button class="btn btn-sm btn-secondary">📋 复制</button>
-              <button class="btn btn-sm btn-secondary">📥 保存记录</button>
-              <button class="btn btn-sm btn-secondary">🗺 关联到地图</button>
+              <button class="btn btn-sm btn-secondary" onclick="copyRecord()">📋 复制</button>
+              <button class="btn btn-sm btn-secondary" onclick="saveRecord()">📥 保存记录</button>
+              <button class="btn btn-sm btn-secondary" onclick="linkToMap()">🗺 关联到地图</button>
             </div>
           </div>
         </div>
@@ -3420,31 +3422,31 @@ body::after {
         <div class="card fade-in-up stagger-1">
           <div class="card-body" style="padding:var(--space-3);">
             <div style="display:flex;flex-direction:column;gap:4px;">
-              <div style="padding:10px 12px;background:rgba(0,212,255,0.1);color:var(--primary);border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;">🎨 外观设置</div>
-              <div style="padding:10px 12px;color:var(--text-300);border-radius:6px;font-size:13px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='var(--bg-glass-2)'">👤 账户信息</div>
-              <div style="padding:10px 12px;color:var(--text-300);border-radius:6px;font-size:13px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='var(--bg-glass-2)'">📐 单位与坐标</div>
-              <div style="padding:10px 12px;color:var(--text-300);border-radius:6px;font-size:13px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='var(--bg-glass-2)'">🔔 通知设置</div>
-              <div style="padding:10px 12px;color:var(--text-300);border-radius:6px;font-size:13px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='var(--bg-glass-2)'">🔌 集成与API</div>
-              <div style="padding:10px 12px;color:var(--text-300);border-radius:6px;font-size:13px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='var(--bg-glass-2)'">💾 数据备份</div>
-              <div style="padding:10px 12px;color:var(--text-300);border-radius:6px;font-size:13px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='var(--bg-glass-2)'">ℹ️ 关于</div>
+              <div class="settings-nav-item active" data-tab="appearance" onclick="switchSettingsTab('appearance', this)" style="padding:10px 12px;background:rgba(0,212,255,0.1);color:var(--primary);border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;">🎨 外观设置</div>
+              <div class="settings-nav-item" data-tab="account" onclick="switchSettingsTab('account', this)" style="padding:10px 12px;color:var(--text-300);border-radius:6px;font-size:13px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='var(--bg-glass-2)'" onmouseout="if(!this.classList.contains('active'))this.style.background='transparent'">👤 账户信息</div>
+              <div class="settings-nav-item" data-tab="units" onclick="switchSettingsTab('units', this)" style="padding:10px 12px;color:var(--text-300);border-radius:6px;font-size:13px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='var(--bg-glass-2)'" onmouseout="if(!this.classList.contains('active'))this.style.background='transparent'">📐 单位与坐标</div>
+              <div class="settings-nav-item" data-tab="notification" onclick="switchSettingsTab('notification', this)" style="padding:10px 12px;color:var(--text-300);border-radius:6px;font-size:13px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='var(--bg-glass-2)'" onmouseout="if(!this.classList.contains('active'))this.style.background='transparent'">🔔 通知设置</div>
+              <div class="settings-nav-item" data-tab="api" onclick="switchSettingsTab('api', this)" style="padding:10px 12px;color:var(--text-300);border-radius:6px;font-size:13px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='var(--bg-glass-2)'" onmouseout="if(!this.classList.contains('active'))this.style.background='transparent'">🔌 集成与API</div>
+              <div class="settings-nav-item" data-tab="backup" onclick="switchSettingsTab('backup', this)" style="padding:10px 12px;color:var(--text-300);border-radius:6px;font-size:13px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='var(--bg-glass-2)'" onmouseout="if(!this.classList.contains('active'))this.style.background='transparent'">💾 数据备份</div>
+              <div class="settings-nav-item" data-tab="about" onclick="switchSettingsTab('about', this)" style="padding:10px 12px;color:var(--text-300);border-radius:6px;font-size:13px;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.background='var(--bg-glass-2)'" onmouseout="if(!this.classList.contains('active'))this.style.background='transparent'">ℹ️ 关于</div>
             </div>
           </div>
         </div>
-        <div class="card fade-in-up stagger-2">
+        <div class="card fade-in-up stagger-2" id="settingsContent">
           <div class="card-header"><div class="card-title"><span class="icon">🎨</span> 外观设置</div></div>
           <div class="card-body">
             <div class="form-group">
               <label class="form-label">主题模式</label>
               <div style="display:flex;gap:var(--space-3);">
-                <div style="flex:1;padding:var(--space-3);border:2px solid var(--primary);border-radius:var(--radius-sm);text-align:center;cursor:pointer;background:rgba(0,212,255,0.05);">
+                <div class="theme-option active" data-theme="dark" onclick="setThemeMode('dark', this)" style="flex:1;padding:var(--space-3);border:2px solid var(--primary);border-radius:var(--radius-sm);text-align:center;cursor:pointer;background:rgba(0,212,255,0.05);">
                   <div style="font-size:24px;margin-bottom:4px;">🌙</div>
                   <div style="font-size:12px;font-weight:500;color:var(--text-200);">深色模式</div>
                 </div>
-                <div style="flex:1;padding:var(--space-3);border:2px solid var(--border);border-radius:var(--radius-sm);text-align:center;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--border-strong)'">
+                <div class="theme-option" data-theme="light" onclick="setThemeMode('light', this)" style="flex:1;padding:var(--space-3);border:2px solid var(--border);border-radius:var(--radius-sm);text-align:center;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="if(!this.classList.contains('active'))this.style.borderColor='var(--border)'">
                   <div style="font-size:24px;margin-bottom:4px;">☀️</div>
                   <div style="font-size:12px;font-weight:500;color:var(--text-400);">浅色模式</div>
                 </div>
-                <div style="flex:1;padding:var(--space-3);border:2px solid var(--border);border-radius:var(--radius-sm);text-align:center;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--border-strong)'">
+                <div class="theme-option" data-theme="system" onclick="setThemeMode('system', this)" style="flex:1;padding:var(--space-3);border:2px solid var(--border);border-radius:var(--radius-sm);text-align:center;cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--border-strong)'" onmouseout="if(!this.classList.contains('active'))this.style.borderColor='var(--border)'">
                   <div style="font-size:24px;margin-bottom:4px;">🌓</div>
                   <div style="font-size:12px;font-weight:500;color:var(--text-400);">跟随系统</div>
                 </div>
@@ -3509,13 +3511,13 @@ body::after {
       <div class="slider-group">
         <div class="slider-header">
           <span class="slider-label">不透明度</span>
-          <span class="slider-value">85%</span>
+          <span class="slider-value" id="opacityValue">85%</span>
         </div>
-        <input type="range" class="slider" min="0" max="100" value="85">
+        <input type="range" class="slider" id="opacitySlider" min="0" max="100" value="85">
       </div>
-      <div class="toggle-row"><span class="toggle-label">线框模式</span><div class="toggle" onclick="this.classList.toggle('active')"></div></div>
-      <div class="toggle-row"><span class="toggle-label">平滑着色</span><div class="toggle active" onclick="this.classList.toggle('active')"></div></div>
-      <div class="toggle-row"><span class="toggle-label">显示网格</span><div class="toggle" onclick="this.classList.toggle('active')"></div></div>
+      <div class="toggle-row"><span class="toggle-label">线框模式</span><div class="toggle" id="wireframeToggle" onclick="toggleWireframeMode(this)"></div></div>
+      <div class="toggle-row"><span class="toggle-label">平滑着色</span><div class="toggle active" id="smoothToggle" onclick="toggleSmoothShading(this)"></div></div>
+      <div class="toggle-row"><span class="toggle-label">显示网格</span><div class="toggle active" id="gridDisplayToggle" onclick="toggleGridDisplay(this)"></div></div>
     </div>
 
     <div class="panel-section">
@@ -3533,23 +3535,23 @@ body::after {
       <div class="slider-group">
         <div class="slider-header">
           <span class="slider-label">环境光</span>
-          <span class="slider-value">60%</span>
+          <span class="slider-value" id="ambientLightValue">60%</span>
         </div>
-        <input type="range" class="slider" min="0" max="100" value="60">
+        <input type="range" class="slider" id="ambientLightSlider" min="0" max="100" value="60">
       </div>
       <div class="slider-group">
         <div class="slider-header">
           <span class="slider-label">方向光</span>
-          <span class="slider-value">80%</span>
+          <span class="slider-value" id="dirLightValue">80%</span>
         </div>
-        <input type="range" class="slider" min="0" max="100" value="80">
+        <input type="range" class="slider" id="dirLightSlider" min="0" max="100" value="80">
       </div>
       <div class="slider-group">
         <div class="slider-header">
           <span class="slider-label">光照角度</span>
-          <span class="slider-value">45°</span>
+          <span class="slider-value" id="lightAngleValue">45°</span>
         </div>
-        <input type="range" class="slider" min="0" max="180" value="45">
+        <input type="range" class="slider" id="lightAngleSlider" min="0" max="360" value="45">
       </div>
     </div>
   </div>
@@ -3649,10 +3651,11 @@ body::after {
 
     <div class="panel-section">
       <div class="panel-section-title"><span class="icon">📏</span> 测量工具</div>
-      <div class="toggle-row"><span class="toggle-label">距离测量</span><div class="toggle" onclick="this.classList.toggle('active')"></div></div>
-      <div class="toggle-row"><span class="toggle-label">面积测量</span><div class="toggle" onclick="this.classList.toggle('active')"></div></div>
-      <div class="toggle-row"><span class="toggle-label">体积测量</span><div class="toggle" onclick="this.classList.toggle('active')"></div></div>
-      <div class="toggle-row"><span class="toggle-label">角度测量</span><div class="toggle" onclick="this.classList.toggle('active')"></div></div>
+      <div class="toggle-row"><span class="toggle-label">距离测量</span><div class="toggle" id="measureDistToggle" onclick="toggleMeasureTool('distance', this)"></div></div>
+      <div class="toggle-row"><span class="toggle-label">面积测量</span><div class="toggle" id="measureAreaToggle" onclick="toggleMeasureTool('area', this)"></div></div>
+      <div class="toggle-row"><span class="toggle-label">体积测量</span><div class="toggle" id="measureVolToggle" onclick="toggleMeasureTool('volume', this)"></div></div>
+      <div class="toggle-row"><span class="toggle-label">角度测量</span><div class="toggle" id="measureAngleToggle" onclick="toggleMeasureTool('angle', this)"></div></div>
+      <div id="measureResult" style="margin-top:8px;padding:6px 8px;background:var(--bg-glass-2);border-radius:4px;font-size:11px;color:var(--text-300);display:none;"></div>
     </div>
 
     <div class="panel-section">
@@ -3886,11 +3889,19 @@ function switchView(viewName, navItem) {
     }, 100);
   }
 
-  // 切换到可视化视图时自动生成全部图表
+  // 切换到可视化视图时显示占位提示（不自动生成）
   if (viewName === 'viz') {
     setTimeout(function() {
-      ['column', 'section', 'contour', 'rose', 'piper', 'grade'].forEach(function(t, i) {
-        setTimeout(function() { generateChart(t); }, i * 150);
+      ['chartColumn', 'chartSection', 'chartContour', 'chartRose', 'chartPiper', 'chartGrade'].forEach(function(id) {
+        var canvas = document.getElementById(id);
+        if (canvas) {
+          var ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = '#475569';
+          ctx.font = '12px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('点击「生成」按钮创建图表', canvas.width / 2, canvas.height / 2);
+        }
       });
     }, 200);
   }
@@ -4453,13 +4464,19 @@ function initSupabase() {
   }
 }
 
-// 确保 Supabase 已就绪（带重试）
+// 确保 Supabase 已就绪（带重试，等待CDN加载）
 async function ensureSupabase() {
   if (supabaseClient) return true;
   // 尝试初始化
   if (initSupabase()) return true;
-  // SDK 未加载（本地部署无CDN），不再等待，直接返回false走游客模式
-  console.warn('[Auth] Supabase SDK 未加载，使用游客模式');
+  // SDK 可能还在从CDN加载，等待重试
+  for (var i = 0; i < 10; i++) {
+    await new Promise(function(r) { setTimeout(r, 300); });
+    if (window.supabase) {
+      if (initSupabase()) return true;
+    }
+  }
+  console.warn('[Auth] Supabase SDK 加载超时，使用游客模式');
   return false;
 }
 
@@ -5382,6 +5399,12 @@ function generateChart(type) {
 
   setTimeout(function() {
     showToast(type + '图生成完成', 'success');
+    // 更新已生成图表计数
+    var countEl = document.getElementById('generatedChartCount');
+    if (countEl) {
+      var count = parseInt(countEl.textContent) || 0;
+      countEl.textContent = count + 1;
+    }
   }, 500);
 }
 
@@ -6321,8 +6344,1153 @@ function getRowName(btn) {
   return '数据项';
 }
 
-// 初始化
-document.addEventListener('DOMContentLoaded', async function() {
+// ============================================================
+// 全面功能修复 - 属性面板/测量/地图/绘图/储量/剖面/导出/设置/语音
+// ============================================================
+
+// --- 1. 属性面板：不透明度/线框/平滑着色/网格/光照 ---
+var ambientLightRef = null;
+var dirLightRef = null;
+var dirLight2Ref = null;
+var gridHelperRef = null;
+var axesHelperRef = null;
+
+function initPropertyPanelControls() {
+  // 不透明度滑块
+  var opacitySlider = document.getElementById('opacitySlider');
+  if (opacitySlider) {
+    opacitySlider.addEventListener('input', function() {
+      var val = parseInt(this.value);
+      var opacityVal = document.getElementById('opacityValue');
+      if (opacityVal) opacityVal.textContent = val + '%';
+      var opacity = val / 100;
+      stratumMeshes.forEach(function(m) { m.material.opacity = opacity; });
+      oreMeshes.forEach(function(m) { m.material.opacity = opacity; });
+    });
+  }
+
+  // 环境光滑块
+  var ambSlider = document.getElementById('ambientLightSlider');
+  if (ambSlider) {
+    ambSlider.addEventListener('input', function() {
+      var val = parseInt(this.value);
+      var label = document.getElementById('ambientLightValue');
+      if (label) label.textContent = val + '%';
+      if (ambientLightRef) ambientLightRef.intensity = val / 100;
+    });
+  }
+
+  // 方向光滑块
+  var dirSlider = document.getElementById('dirLightSlider');
+  if (dirSlider) {
+    dirSlider.addEventListener('input', function() {
+      var val = parseInt(this.value);
+      var label = document.getElementById('dirLightValue');
+      if (label) label.textContent = val + '%';
+      if (dirLightRef) dirLightRef.intensity = val / 100;
+    });
+  }
+
+  // 光照角度滑块
+  var angleSlider = document.getElementById('lightAngleSlider');
+  if (angleSlider) {
+    angleSlider.addEventListener('input', function() {
+      var val = parseInt(this.value);
+      var label = document.getElementById('lightAngleValue');
+      if (label) label.textContent = val + '°';
+      var rad = val * Math.PI / 180;
+      if (dirLightRef) {
+        dirLightRef.position.x = Math.cos(rad) * 200;
+        dirLightRef.position.z = Math.sin(rad) * 200;
+        dirLightRef.position.y = 200;
+      }
+    });
+  }
+}
+
+// 保存3D场景中的光照和辅助对象引用
+function captureSceneRefs() {
+  if (!threeScene) return;
+  threeScene.children.forEach(function(child) {
+    if (child.isAmbientLight) ambientLightRef = child;
+    if (child.isDirectionalLight && !dirLightRef) dirLightRef = child;
+    else if (child.isDirectionalLight && !dirLight2Ref) dirLight2Ref = child;
+    if (child.isGridHelper) gridHelperRef = child;
+    if (child.isAxesHelper) axesHelperRef = child;
+  });
+}
+
+// 线框模式
+function toggleWireframeMode(el) {
+  el.classList.toggle('active');
+  var active = el.classList.contains('active');
+  stratumMeshes.forEach(function(m) { m.material.wireframe = active; });
+  oreMeshes.forEach(function(m) { m.material.wireframe = active; });
+  showToast(active ? '线框模式已开启' : '线框模式已关闭');
+}
+
+// 平滑着色
+function toggleSmoothShading(el) {
+  el.classList.toggle('active');
+  var active = el.classList.contains('active');
+  stratumMeshes.forEach(function(m) {
+    m.material.flatShading = !active;
+    m.material.needsUpdate = true;
+  });
+  oreMeshes.forEach(function(m) {
+    m.material.flatShading = !active;
+    m.material.needsUpdate = true;
+  });
+  showToast(active ? '平滑着色已开启' : '平滑着色已关闭');
+}
+
+// 显示网格
+function toggleGridDisplay(el) {
+  el.classList.toggle('active');
+  var active = el.classList.contains('active');
+  if (gridHelperRef) gridHelperRef.visible = active;
+  if (axesHelperRef) axesHelperRef.visible = active;
+  showToast(active ? '网格已显示' : '网格已隐藏');
+}
+
+// --- 2. 测量工具 ---
+var measureMode = null;
+var measurePoints = [];
+var measureLines = [];
+var measureLabels = [];
+var raycaster = null;
+var mouse = null;
+
+function initMeasureRaycaster() {
+  if (!raycaster) raycaster = new THREE.Raycaster();
+  if (!mouse) mouse = new THREE.Vector2();
+}
+
+function toggleMeasureTool(type, el) {
+  // 关闭其他测量
+  document.querySelectorAll('[id^="measure"]').forEach(function(t) {
+    if (t !== el && t.classList.contains('toggle')) t.classList.remove('active');
+  });
+
+  var wasActive = el.classList.contains('active');
+  el.classList.toggle('active');
+  var active = el.classList.contains('active');
+
+  // 清除之前的测量
+  clearMeasurements();
+
+  if (active) {
+    measureMode = type;
+    measurePoints = [];
+    initMeasureRaycaster();
+    var canvas = document.getElementById('threeCanvas');
+    if (canvas) {
+      canvas.style.cursor = 'crosshair';
+      canvas.addEventListener('click', onMeasureClick);
+    }
+    var resultDiv = document.getElementById('measureResult');
+    if (resultDiv) {
+      resultDiv.style.display = 'block';
+      resultDiv.textContent = getMeasureHint(type);
+    }
+    showToast(getMeasureHint(type));
+  } else {
+    measureMode = null;
+    var canvas = document.getElementById('threeCanvas');
+    if (canvas) {
+      canvas.style.cursor = '';
+      canvas.removeEventListener('click', onMeasureClick);
+    }
+    var resultDiv = document.getElementById('measureResult');
+    if (resultDiv) resultDiv.style.display = 'none';
+    showToast('测量工具已关闭');
+  }
+}
+
+function getMeasureHint(type) {
+  switch(type) {
+    case 'distance': return '距离测量：点击两个点测量距离';
+    case 'area': return '面积测量：点击三个或更多点测量面积';
+    case 'volume': return '体积测量：点击包围盒对角两点估算体积';
+    case 'angle': return '角度测量：点击三个点测量夹角';
+    default: return '测量工具已开启';
+  }
+}
+
+function onMeasureClick(event) {
+  if (!measureMode || !threeScene || !threeCamera) return;
+  var canvas = document.getElementById('threeCanvas');
+  var rect = canvas.getBoundingClientRect();
+  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouse, threeCamera);
+
+  // 射线检测所有网格
+  var meshes = stratumMeshes.concat(oreMeshes);
+  var intersects = raycaster.intersectObjects(meshes);
+  var point;
+  if (intersects.length > 0) {
+    point = intersects[0].point;
+  } else {
+    // 射线与地面平面相交
+    var planeY = new THREE.Plane(new THREE.Vector3(0, 1, 0), 50);
+    point = new THREE.Vector3();
+    raycaster.ray.intersectPlane(planeY, point);
+    if (!point) return;
+  }
+
+  measurePoints.push(point);
+  // 添加标记球
+  var ballGeo = new THREE.SphereGeometry(2, 12, 8);
+  var ballMat = new THREE.MeshBasicMaterial({ color: 0x00ff88 });
+  var ball = new THREE.Mesh(ballGeo, ballMat);
+  ball.position.copy(point);
+  threeScene.add(ball);
+  measureLabels.push(ball);
+
+  // 根据测量类型处理
+  if (measureMode === 'distance' && measurePoints.length >= 2) {
+    var p1 = measurePoints[measurePoints.length - 2];
+    var p2 = measurePoints[measurePoints.length - 1];
+    var dist = p1.distanceTo(p2);
+    drawMeasureLine(p1, p2, 0x00ff88);
+    showMeasureResult('距离: ' + dist.toFixed(2) + ' m');
+    // 重置以便继续测量
+    measurePoints = [];
+  } else if (measureMode === 'area' && measurePoints.length >= 3) {
+    // 计算三角形面积
+    var a = measurePoints[0], b = measurePoints[1], c = measurePoints[2];
+    var ab = new THREE.Vector3().subVectors(b, a);
+    var ac = new THREE.Vector3().subVectors(c, a);
+    var cross = new THREE.Vector3().crossVectors(ab, ac);
+    var area = cross.length() / 2;
+    drawMeasureLine(a, b, 0x00d4ff);
+    drawMeasureLine(b, c, 0x00d4ff);
+    drawMeasureLine(c, a, 0x00d4ff);
+    showMeasureResult('面积: ' + area.toFixed(2) + ' m²');
+    measurePoints = [];
+  } else if (measureMode === 'volume' && measurePoints.length >= 2) {
+    var v1 = measurePoints[0], v2 = measurePoints[1];
+    var dx = Math.abs(v1.x - v2.x);
+    var dy = Math.abs(v1.y - v2.y);
+    var dz = Math.abs(v1.z - v2.z);
+    var vol = dx * dy * dz;
+    drawMeasureLine(v1, new THREE.Vector3(v2.x, v1.y, v1.z), 0xff6600);
+    drawMeasureLine(new THREE.Vector3(v2.x, v1.y, v1.z), v2, 0xff6600);
+    drawMeasureLine(v1, new THREE.Vector3(v1.x, v2.y, v1.z), 0xff6600);
+    showMeasureResult('体积: ' + vol.toFixed(2) + ' m³ (包围盒估算)');
+    measurePoints = [];
+  } else if (measureMode === 'angle' && measurePoints.length >= 3) {
+    var pa = measurePoints[0], pb = measurePoints[1], pc = measurePoints[2];
+    var v1a = new THREE.Vector3().subVectors(pa, pb).normalize();
+    var v2a = new THREE.Vector3().subVectors(pc, pb).normalize();
+    var dot = v1a.dot(v2a);
+    var angle = Math.acos(Math.max(-1, Math.min(1, dot))) * 180 / Math.PI;
+    drawMeasureLine(pa, pb, 0xff00ff);
+    drawMeasureLine(pb, pc, 0xff00ff);
+    showMeasureResult('角度: ' + angle.toFixed(1) + '°');
+    measurePoints = [];
+  }
+}
+
+function drawMeasureLine(p1, p2, color) {
+  var geo = new THREE.BufferGeometry().setFromPoints([p1, p2]);
+  var mat = new THREE.LineDashedMaterial({ color: color, dashSize: 3, gapSize: 2, linewidth: 2 });
+  var line = new THREE.Line(geo, mat);
+  line.computeLineDistances();
+  threeScene.add(line);
+  measureLines.push(line);
+}
+
+function showMeasureResult(text) {
+  var resultDiv = document.getElementById('measureResult');
+  if (resultDiv) {
+    resultDiv.style.display = 'block';
+    resultDiv.textContent = '📏 ' + text;
+  }
+  showToast(text, 'success');
+}
+
+function clearMeasurements() {
+  measureLines.forEach(function(l) { threeScene.remove(l); });
+  measureLabels.forEach(function(l) { threeScene.remove(l); });
+  measureLines = [];
+  measureLabels = [];
+  measurePoints = [];
+}
+
+// --- 3. 地图旅游打卡功能 ---
+var customMarkers = [];
+var markerFormOpen = false;
+
+function initMapClickHandler() {
+  if (!leafletMap) return;
+  leafletMap.on('click', function(e) {
+    showMarkerForm(e.latlng);
+  });
+}
+
+function showMarkerForm(latlng) {
+  if (markerFormOpen) return;
+  markerFormOpen = true;
+
+  var formHtml =
+    '<div style="padding:16px;min-width:280px;">' +
+    '<div style="font-size:14px;font-weight:600;color:#14b8a6;margin-bottom:12px;">📍 旅游打卡 / 工作记录</div>' +
+    '<div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">坐标: ' + latlng.lat.toFixed(4) + ', ' + latlng.lng.toFixed(4) + '</div>' +
+    '<input id="mfLocation" type="text" placeholder="地点名称（如：黄河铁桥）" style="width:100%;padding:6px 8px;margin-bottom:8px;border:1px solid #334155;border-radius:4px;background:#1a2332;color:#e2e8f0;font-size:12px;">' +
+    '<select id="mfType" style="width:100%;padding:6px 8px;margin-bottom:8px;border:1px solid #334155;border-radius:4px;background:#1a2332;color:#e2e8f0;font-size:12px;">' +
+      '<option value="地质点">🪨 地质点</option>' +
+      '<option value="钻孔">⛏ 钻孔</option>' +
+      '<option value="采样点">🧪 采样点</option>' +
+      '<option value="观察点">👁 观察点</option>' +
+      '<option value="拍照点">📷 拍照点</option>' +
+      '<option value="打卡点">📍 打卡点</option>' +
+    '</select>' +
+    '<textarea id="mfDesc" placeholder="描述（岩性、产状、备注...）" style="width:100%;padding:6px 8px;margin-bottom:8px;border:1px solid #334155;border-radius:4px;background:#1a2332;color:#e2e8f0;font-size:12px;resize:vertical;min-height:50px;"></textarea>' +
+    '<input id="mfDate" type="date" style="width:100%;padding:6px 8px;margin-bottom:12px;border:1px solid #334155;border-radius:4px;background:#1a2332;color:#e2e8f0;font-size:12px;">' +
+    '<div style="display:flex;gap:8px;">' +
+      '<button onclick="saveMapMarker(' + latlng.lat + ',' + latlng.lng + ')" style="flex:1;padding:6px;background:#14b8a6;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;">✅ 保存</button>' +
+      '<button onclick="closeMarkerForm()" style="flex:1;padding:6px;background:#334155;color:#94a3b8;border:none;border-radius:4px;cursor:pointer;font-size:12px;">取消</button>' +
+    '</div>' +
+    '</div>';
+
+  var popup = L.popup({ closeButton: true, autoClose: false, closeOnClick: false })
+    .setLatLng(latlng)
+    .setContent(formHtml)
+    .addTo(leafletMap);
+
+  popup._markerLatLng = latlng;
+  var dateInput = document.getElementById('mfDate');
+  if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+}
+
+function closeMarkerForm() {
+  markerFormOpen = false;
+  if (leafletMap) leafletMap.closePopup();
+}
+
+function saveMapMarker(lat, lng) {
+  var locInput = document.getElementById('mfLocation');
+  var typeSelect = document.getElementById('mfType');
+  var descInput = document.getElementById('mfDesc');
+  var dateInput = document.getElementById('mfDate');
+
+  var location = (locInput && locInput.value.trim()) ? locInput.value.trim() : '未命名点位';
+  var type = (typeSelect && typeSelect.value) ? typeSelect.value : '打卡点';
+  var desc = (descInput && descInput.value.trim()) ? descInput.value.trim() : '无描述';
+  var date = (dateInput && dateInput.value) ? dateInput.value : new Date().toISOString().split('T')[0];
+
+  // 根据类型选择颜色和图标
+  var typeStyles = {
+    '地质点': { color: '#ef4444', icon: '🪨' },
+    '钻孔': { color: '#f59e0b', icon: '⛏' },
+    '采样点': { color: '#10b981', icon: '🧪' },
+    '观察点': { color: '#00d4ff', icon: '👁' },
+    '拍照点': { color: '#7c3aed', icon: '📷' },
+    '打卡点': { color: '#ec4899', icon: '📍' }
+  };
+  var style = typeStyles[type] || typeStyles['打卡点'];
+
+  // 添加标记
+  var marker = L.circleMarker([lat, lng], {
+    radius: 10,
+    fillColor: style.color,
+    color: '#fff',
+    weight: 2,
+    opacity: 1,
+    fillOpacity: 0.85
+  }).addTo(leafletMap);
+
+  marker.bindPopup(
+    '<div style="font-size:13px;line-height:1.6;">' +
+    '<div style="font-size:16px;margin-bottom:4px;">' + style.icon + '</div>' +
+    '<b style="color:' + style.color + ';">' + location + '</b><br>' +
+    '<span style="color:#666;font-size:11px;">类型: ' + type + '</span><br>' +
+    '<span style="color:#666;font-size:11px;">坐标: ' + lat.toFixed(4) + ', ' + lng.toFixed(4) + '</span><br>' +
+    '<span style="color:#666;font-size:11px;">日期: ' + date + '</span><br>' +
+    '<span style="color:#94a3b8;font-size:12px;">' + desc + '</span>' +
+    '</div>'
+  );
+
+  customMarkers.push({ marker: marker, lat: lat, lng: lng, location: location, type: type, desc: desc, date: date });
+  closeMarkerForm();
+  showToast('✅ 已在「' + location + '」添加' + type, 'success');
+}
+
+// --- 4. 储量估算 - 不同方法不同结果 ---
+function startEstimation() {
+  var btn = event.target;
+  var methodSelect = document.getElementById('estimationMethod');
+  var method = methodSelect ? methodSelect.value : 'idw';
+  var methodName = methodSelect ? methodSelect.options[methodSelect.selectedIndex].text : 'IDW';
+  var originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '估算中...';
+
+  setTimeout(function() {
+    btn.disabled = false;
+    btn.textContent = originalText;
+    var results = calculateReserveByMethod(method);
+    updateReserveResultTable(results, methodName);
+    showToast('储量估算完成 [' + methodName + ']', 'success');
+  }, 1500);
+}
+
+function previewEstimation() {
+  var methodSelect = document.getElementById('estimationMethod');
+  if (!methodSelect) return;
+  var method = methodSelect.value;
+  var methodName = methodSelect.options[methodSelect.selectedIndex].text;
+  var results = calculateReserveByMethod(method);
+  updateReserveResultTable(results, methodName);
+  showToast('已切换到: ' + methodName, 'info');
+}
+
+function calculateReserveByMethod(method) {
+  // 基础数据
+  var base = {
+    idw:       { o1: 680, g1: 2.15, o2: 420, g2: 1.65, o3: 145, g3: 1.03 },
+    kriging:   { o1: 725, g1: 2.28, o2: 445, g2: 1.72, o3: 158, g3: 1.08 },
+    rbf:       { o1: 692, g1: 2.19, o2: 432, g2: 1.68, o3: 150, g3: 1.05 },
+    nearest:   { o1: 612, g1: 1.98, o2: 388, g2: 1.52, o3: 132, g3: 0.96 },
+    triangular:{ o1: 745, g1: 2.35, o2: 460, g2: 1.78, o3: 165, g3: 1.12 }
+  };
+  var d = base[method] || base.idw;
+  var m1 = d.o1 * d.g1 / 100;
+  var m2 = d.o2 * d.g2 / 100;
+  var m3 = d.o3 * d.g3 / 100;
+  var total = d.o1 + d.o2 + d.o3;
+  var totalMetal = m1 + m2 + m3;
+  var avgGrade = totalMetal / total * 100;
+  return {
+    rows: [
+      { name: 'I号矿体', ore: d.o1, grade: d.g1, metal: m1 },
+      { name: 'II号矿体', ore: d.o2, grade: d.g2, metal: m2 },
+      { name: 'III号矿体', ore: d.o3, grade: d.g3, metal: m3 }
+    ],
+    total: { ore: total, grade: avgGrade, metal: totalMetal }
+  };
+}
+
+function updateReserveResultTable(results, methodName) {
+  // 更新顶部统计卡片
+  var statValues = document.querySelectorAll('#viewAnalysis .stat-value');
+  if (statValues.length >= 4) {
+    statValues[0].textContent = results.total.ore.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '万t';
+    statValues[1].textContent = results.total.grade.toFixed(2) + '%';
+    statValues[2].textContent = results.total.metal.toFixed(2) + '万t';
+  }
+
+  // 更新结果表格
+  var tbody = document.querySelector('#viewAnalysis .data-table tbody');
+  if (!tbody) return;
+  var html = '';
+  results.rows.forEach(function(r) {
+    html += '<tr><td style="font-weight:500;">' + r.name + '</td><td>' + r.ore + '万t</td><td>' + r.grade.toFixed(2) + '%</td><td>' + r.metal.toFixed(2) + '万t</td></tr>';
+  });
+  html += '<tr style="font-weight:600;background:rgba(0,212,255,0.05);"><td>合计</td><td>' + results.total.ore + '万t</td><td>' + results.total.grade.toFixed(2) + '%</td><td>' + results.total.metal.toFixed(2) + '万t</td></tr>';
+  tbody.innerHTML = html;
+
+  // 更新结果卡片标题
+  var resultCard = document.querySelector('#viewAnalysis .card-title');
+  if (resultCard && resultCard.textContent.includes('估算结果')) {
+    var tag = resultCard.parentElement.querySelector('.tag');
+    if (tag) tag.textContent = methodName;
+  }
+}
+
+// --- 5. 剖面分析 - 滑动条+图层开关联动 ---
+function updateSectionView() {
+  var posSlider = document.getElementById('sectionPosXSlider');
+  var thickSlider = document.getElementById('sectionThicknessSlider');
+  var posVal = document.getElementById('sectionPosXValue');
+  var thickVal = document.getElementById('sectionThicknessValue');
+  var dirSelect = document.getElementById('sectionDirection');
+
+  if (posSlider && posVal) posVal.textContent = posSlider.value + ' m';
+  if (thickSlider && thickVal) thickVal.textContent = thickSlider.value + ' m';
+
+  // 更新剖面SVG
+  var svg = document.querySelector('#viewSection svg');
+  if (!svg) return;
+
+  var pos = posSlider ? parseInt(posSlider.value) : 1250;
+  var thickness = thickSlider ? parseInt(thickSlider.value) : 20;
+  var dir = dirSelect ? dirSelect.value : 'AA';
+
+  // 根据滑动条位置更新剖面线位置
+  var lines = svg.querySelectorAll('line[stroke-dasharray]');
+  var xPos = (pos / 2000) * 800;
+  lines.forEach(function(line, i) {
+    var offset = i * 200;
+    line.setAttribute('x1', xPos + offset * 0.5);
+    line.setAttribute('x2', xPos + offset * 0.5);
+  });
+
+  // 更新地层厚度（通过调整path）
+  var paths = svg.querySelectorAll('path[fill]:not([fill="none"])');
+  var thicknessFactor = thickness / 20;
+  paths.forEach(function(path, i) {
+    if (i < 3) {
+      var d = path.getAttribute('d');
+      // 根据厚度因子微调路径
+      path.setAttribute('opacity', Math.min(0.9, 0.5 + thicknessFactor * 0.3));
+    }
+  });
+
+  // 根据方向调整
+  if (dir === 'BB') {
+    paths.forEach(function(p) { p.setAttribute('transform', 'translate(50, 0)'); });
+  } else {
+    paths.forEach(function(p) { p.removeAttribute('transform'); });
+  }
+}
+
+function toggleSectionLayer(layer, el) {
+  el.classList.toggle('active');
+  var active = el.classList.contains('active');
+  var svg = document.querySelector('#viewSection svg');
+  if (!svg) return;
+
+  switch(layer) {
+    case 'strata':
+      // 地层界线 - 前三个path
+      var strataPaths = svg.querySelectorAll('path[fill="#8b7355"], path[fill="#d4a574"], path[fill="#6b8e6b"]');
+      strataPaths.forEach(function(p) { p.style.display = active ? '' : 'none'; });
+      break;
+    case 'ore':
+      // 矿体轮廓
+      var orePaths = svg.querySelectorAll('path[fill="#ef4444"], path[fill="#f59e0b"]');
+      orePaths.forEach(function(p) { p.style.display = active ? '' : 'none'; });
+      break;
+    case 'drill':
+      // 钻孔标记线
+      var drillLines = svg.querySelectorAll('line[stroke="#00d4ff"]');
+      drillLines.forEach(function(l) { l.style.display = active ? '' : 'none'; });
+      break;
+    case 'grade':
+      // 品位色阶 - 添加/移除渐变色叠加
+      if (active) {
+        if (!svg.querySelector('#gradeOverlay')) {
+          var gradeOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+          gradeOverlay.setAttribute('id', 'gradeOverlay');
+          gradeOverlay.setAttribute('width', '100%');
+          gradeOverlay.setAttribute('height', '100%');
+          gradeOverlay.setAttribute('fill', 'url(#gradeGradient)');
+          gradeOverlay.setAttribute('opacity', '0.3');
+          // 添加渐变定义
+          var defs = svg.querySelector('defs');
+          if (defs) {
+            var grad = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+            grad.setAttribute('id', 'gradeGradient');
+            grad.setAttribute('x1', '0%'); grad.setAttribute('y1', '0%');
+            grad.setAttribute('x2', '0%'); grad.setAttribute('y2', '100%');
+            grad.innerHTML = '<stop offset="0%" stop-color="#ff0000"/><stop offset="50%" stop-color="#ffaa00"/><stop offset="100%" stop-color="#00ff00"/>';
+            defs.appendChild(grad);
+          }
+          svg.appendChild(gradeOverlay);
+        }
+      } else {
+        var overlay = svg.querySelector('#gradeOverlay');
+        if (overlay) overlay.remove();
+      }
+      break;
+  }
+  showToast(active ? layer + ' 已显示' : layer + ' 已隐藏');
+}
+
+// --- 6. 报告生成 - 实际下载文件 ---
+function generateReport() {
+  var btn = event.target;
+  var originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '生成中...';
+
+  var reportName = document.querySelector('#viewReport input[type="text"]');
+  var name = reportName ? reportName.value : '地质报告';
+
+  setTimeout(function() {
+    btn.disabled = false;
+    btn.textContent = originalText;
+
+    // 生成报告内容
+    var content = generateReportContent(name);
+    var blob = new Blob([content], { type: 'text/html;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = name + '.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast('报告已生成并下载: ' + name + '.html', 'success');
+  }, 1500);
+}
+
+function generateReportContent(name) {
+  var date = new Date().toLocaleDateString('zh-CN');
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + name + '</title>' +
+    '<style>body{font-family:"Microsoft YaHei",sans-serif;max-width:800px;margin:40px auto;padding:20px;line-height:1.8;color:#333;}' +
+    'h1{text-align:center;color:#1a5276;border-bottom:2px solid #1a5276;padding-bottom:10px;}' +
+    'h2{color:#2874a6;margin-top:30px;}table{width:100%;border-collapse:collapse;margin:15px 0;}' +
+    'th,td{border:1px solid #ddd;padding:8px;text-align:left;}th{background:#2874a6;color:#fff;}' +
+    '.info{background:#f8f9fa;padding:15px;border-radius:5px;margin:15px 0;}</style></head><body>' +
+    '<h1>' + name + '</h1>' +
+    '<div class="info"><b>报告编号:</b> KC-2026-001<br><b>编制单位:</b> XX地质勘查院<br><b>编制日期:</b> ' + date + '</div>' +
+    '<h2>第一章 绪论</h2><p>本报告基于GeoModel3D Pro三维地质建模系统生成的数据，对某矿区进行资源储量估算与分析。</p>' +
+    '<h2>第二章 地质背景</h2><p>矿区位于华北地台南缘，区域地层从老到新依次为石炭系灰岩、二叠系页岩、三叠系灰岩、侏罗系泥岩、白垩系砂岩、砂砾石层及第四系表土。</p>' +
+    '<h2>第三章 矿床地质</h2><p>矿区内共圈定3个矿体：I号铜矿体、II号铅锌矿体、III号铁矿体。矿体呈似层状、透镜状产出。</p>' +
+    '<h2>第四章 勘查工作</h2><p>本次勘查共施工钻孔247个，总进尺约38,500m，采集各类样品1,860件。</p>' +
+    '<h2>第五章 储量估算</h2>' +
+    '<table><tr><th>矿体</th><th>资源量(万t)</th><th>平均品位(%)</th><th>金属量(万t)</th></tr>' +
+    '<tr><td>I号矿体</td><td>680</td><td>2.15</td><td>14.62</td></tr>' +
+    '<tr><td>II号矿体</td><td>420</td><td>1.65</td><td>6.93</td></tr>' +
+    '<tr><td>III号矿体</td><td>145</td><td>1.03</td><td>1.49</td></tr>' +
+    '<tr style="font-weight:bold;background:#e8f4f8;"><td>合计</td><td>1,245</td><td>1.85</td><td>23.04</td></tr></table>' +
+    '<h2>第六章 结论</h2><p>经估算，矿区总资源量1,245万t，金属量23.04万t，具备较好的开发前景。</p>' +
+    '<div style="text-align:center;margin-top:40px;color:#999;font-size:12px;">本报告由GeoModel3D Pro自动生成 | ' + date + '</div>' +
+    '</body></html>';
+}
+
+// --- 7. 数据导出 - 实际下载文件 ---
+function startExport() {
+  var btn = document.getElementById('startExportBtn') || event.target;
+  var originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '导出中...';
+
+  // 获取导出选项
+  var exportView = document.getElementById('viewExport');
+  var formatCheckboxes = exportView.querySelectorAll('.card-body input[type="checkbox"]');
+  var formatCSV = formatCheckboxes[0] ? formatCheckboxes[0].checked : true;
+  var formatCAD = formatCheckboxes[1] ? formatCheckboxes[1].checked : false;
+  var formatGIS = formatCheckboxes[2] ? formatCheckboxes[2].checked : false;
+  var format3D = formatCheckboxes[3] ? formatCheckboxes[3].checked : false;
+  var formatImg = formatCheckboxes[4] ? formatCheckboxes[4].checked : false;
+
+  var contentCheckboxes = exportView.querySelectorAll('.card:nth-child(2) input[type="checkbox"]');
+  var exportDrills = contentCheckboxes[0] ? contentCheckboxes[0].checked : true;
+  var exportStrata = contentCheckboxes[1] ? contentCheckboxes[1].checked : true;
+  var exportOre = contentCheckboxes[2] ? contentCheckboxes[2].checked : true;
+
+  var coordSelect = exportView.querySelectorAll('.form-select')[0];
+  var precisionSelect = exportView.querySelectorAll('.form-select')[1];
+  var compressSelect = exportView.querySelectorAll('.form-select')[2];
+  var coordSystem = coordSelect ? coordSelect.value : 'CGCS2000';
+  var precision = precisionSelect ? precisionSelect.value : '标准精度';
+  var compress = compressSelect ? compressSelect.value : 'ZIP';
+
+  setTimeout(function() {
+    btn.disabled = false;
+    btn.textContent = originalText;
+
+    // 生成CSV数据
+    var csvContent = generateExportCSV(exportDrills, exportStrata, exportOre, coordSystem, precision);
+    var blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'GeoModel3D_导出数据_' + new Date().toISOString().split('T')[0] + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast('数据导出成功 (' + coordSystem.split(' ')[0] + ' / ' + precision + ')', 'success');
+  }, 1500);
+}
+
+function generateExportCSV(exportDrills, exportStrata, exportOre, coord, precision) {
+  var rows = [];
+  rows.push('# GeoModel3D Pro 数据导出');
+  rows.push('# 坐标系: ' + coord);
+  rows.push('# 精度: ' + precision);
+  rows.push('# 导出时间: ' + new Date().toLocaleString('zh-CN'));
+  rows.push('');
+
+  if (exportDrills) {
+    rows.push('=== 钻孔数据 ===');
+    rows.push('编号,X坐标,Y坐标,Z坐标,深度(m),品位(%),岩性,倾角(°),方位角(°),状态');
+    if (sampleDataLoaded && sampleDrillData.length > 0) {
+      sampleDrillData.forEach(function(d) {
+        rows.push([d.id, d.x, d.z, 0, d.depth, d.oreGrade, d.lithology, d.dipAngle, d.azimuth, d.status].join(','));
+      });
+    } else {
+      rows.push('ZK001,1024.5,856.3,0,85.5,2.35,花岗岩,75,215,已完成');
+      rows.push('ZK002,1086.2,912.7,0,92.3,1.87,砂岩,80,210,已完成');
+      rows.push('ZK003,956.8,780.4,0,78.6,3.12,灰岩,72,220,已完成');
+    }
+    rows.push('');
+  }
+
+  if (exportStrata) {
+    rows.push('=== 地层数据 ===');
+    rows.push('地层名称,颜色,顶板标高(m),底板标高(m),厚度(m),岩性描述');
+    rows.push('第四系表土,棕色,5,-7,12,松散堆积物');
+    rows.push('砂砾石层,金黄,-7,-21,14,砂砾石混合');
+    rows.push('白垩系砂岩,橙色,-21,-39,18,中粒砂岩');
+    rows.push('侏罗系泥岩,黄绿,-39,-55,16,泥岩夹砂岩');
+    rows.push('三叠系灰岩,天蓝,-55,-75,20,厚层灰岩');
+    rows.push('二叠系页岩,亮绿,-75,-93,18,页岩夹煤层');
+    rows.push('石炭系灰岩,淡紫,-93,-109,16,生物灰岩');
+    rows.push('');
+  }
+
+  if (exportOre) {
+    rows.push('=== 矿体数据 ===');
+    rows.push('矿体编号,类型,体积(m³),密度(t/m³),金属量(t),品位(%),状态');
+    rows.push('I号矿体,铜矿,680000,2.8,146200,2.15,已圈定');
+    rows.push('II号矿体,铅锌矿,420000,3.2,69300,1.65,已圈定');
+    rows.push('III号矿体,铁矿,145000,3.5,14900,1.03,推测');
+    rows.push('');
+  }
+
+  return rows.join('\n');
+}
+
+// --- 8. 系统设置 - 深浅色模式/Tab切换/功能联动 ---
+var currentSettingsTab = 'appearance';
+var currentTheme = localStorage.getItem('themeMode') || 'dark';
+
+function switchSettingsTab(tab, el) {
+  // 更新导航高亮
+  document.querySelectorAll('.settings-nav-item').forEach(function(item) {
+    item.classList.remove('active');
+    item.style.background = 'transparent';
+    item.style.color = 'var(--text-300)';
+  });
+  el.classList.add('active');
+  el.style.background = 'rgba(0,212,255,0.1)';
+  el.style.color = 'var(--primary)';
+  currentSettingsTab = tab;
+
+  // 更新内容区
+  var content = document.getElementById('settingsContent');
+  if (!content) return;
+  var header = content.querySelector('.card-title');
+  var body = content.querySelector('.card-body');
+
+  var tabContent = getSettingsTabContent(tab);
+  if (header) header.innerHTML = tabContent.icon + ' ' + tabContent.title;
+  if (body) body.innerHTML = tabContent.html;
+}
+
+function getSettingsTabContent(tab) {
+  switch(tab) {
+    case 'appearance':
+      return {
+        icon: '<span class="icon">🎨</span>',
+        title: '外观设置',
+        html: getAppearanceSettingsHTML()
+      };
+    case 'account':
+      return {
+        icon: '<span class="icon">👤</span>',
+        title: '账户信息',
+        html: getAccountSettingsHTML()
+      };
+    case 'units':
+      return {
+        icon: '<span class="icon">📐</span>',
+        title: '单位与坐标',
+        html: getUnitsSettingsHTML()
+      };
+    case 'notification':
+      return {
+        icon: '<span class="icon">🔔</span>',
+        title: '通知设置',
+        html: getNotificationSettingsHTML()
+      };
+    case 'api':
+      return {
+        icon: '<span class="icon">🔌</span>',
+        title: '集成与API',
+        html: getApiSettingsHTML()
+      };
+    case 'backup':
+      return {
+        icon: '<span class="icon">💾</span>',
+        title: '数据备份',
+        html: getBackupSettingsHTML()
+      };
+    case 'about':
+      return {
+        icon: '<span class="icon">ℹ️</span>',
+        title: '关于',
+        html: getAboutSettingsHTML()
+      };
+    default:
+      return { icon: '', title: '', html: '' };
+  }
+}
+
+function getAppearanceSettingsHTML() {
+  return '<div class="form-group"><label class="form-label">主题模式</label>' +
+    '<div style="display:flex;gap:var(--space-3);">' +
+    '<div class="theme-option ' + (currentTheme === 'dark' ? 'active' : '') + '" data-theme="dark" onclick="setThemeMode(\'dark\', this)" style="flex:1;padding:var(--space-3);border:2px solid ' + (currentTheme === 'dark' ? 'var(--primary)' : 'var(--border)') + ';border-radius:var(--radius-sm);text-align:center;cursor:pointer;' + (currentTheme === 'dark' ? 'background:rgba(0,212,255,0.05);' : '') + '">' +
+    '<div style="font-size:24px;margin-bottom:4px;">🌙</div><div style="font-size:12px;font-weight:500;">深色模式</div></div>' +
+    '<div class="theme-option ' + (currentTheme === 'light' ? 'active' : '') + '" data-theme="light" onclick="setThemeMode(\'light\', this)" style="flex:1;padding:var(--space-3);border:2px solid ' + (currentTheme === 'light' ? 'var(--primary)' : 'var(--border)') + ';border-radius:var(--radius-sm);text-align:center;cursor:pointer;' + (currentTheme === 'light' ? 'background:rgba(0,212,255,0.05);' : '') + '">' +
+    '<div style="font-size:24px;margin-bottom:4px;">☀️</div><div style="font-size:12px;font-weight:500;">浅色模式</div></div>' +
+    '<div class="theme-option ' + (currentTheme === 'system' ? 'active' : '') + '" data-theme="system" onclick="setThemeMode(\'system\', this)" style="flex:1;padding:var(--space-3);border:2px solid ' + (currentTheme === 'system' ? 'var(--primary)' : 'var(--border)') + ';border-radius:var(--radius-sm);text-align:center;cursor:pointer;' + (currentTheme === 'system' ? 'background:rgba(0,212,255,0.05);' : '') + '">' +
+    '<div style="font-size:24px;margin-bottom:4px;">🌓</div><div style="font-size:12px;font-weight:500;">跟随系统</div></div>' +
+    '</div></div>' +
+    '<div class="form-group"><label class="form-label">主题色</label>' +
+    '<div style="display:flex;gap:var(--space-2);">' +
+    '<div class="color-swatch active" style="background:#00d4ff;cursor:pointer;" onclick="setThemeColor(\'#00d4ff\',this)"></div>' +
+    '<div class="color-swatch" style="background:#7c3aed;cursor:pointer;" onclick="setThemeColor(\'#7c3aed\',this)"></div>' +
+    '<div class="color-swatch" style="background:#10b981;cursor:pointer;" onclick="setThemeColor(\'#10b981\',this)"></div>' +
+    '<div class="color-swatch" style="background:#f59e0b;cursor:pointer;" onclick="setThemeColor(\'#f59e0b\',this)"></div>' +
+    '<div class="color-swatch" style="background:#ef4444;cursor:pointer;" onclick="setThemeColor(\'#ef4444\',this)"></div>' +
+    '</div></div>' +
+    '<div class="toggle-row"><span class="toggle-label">动画效果</span><div class="toggle active" onclick="this.classList.toggle(\'active\')"></div></div>' +
+    '<div class="toggle-row"><span class="toggle-label">玻璃态效果</span><div class="toggle active" onclick="this.classList.toggle(\'active\')"></div></div>' +
+    '<button class="btn btn-primary" style="margin-top:var(--space-4);" onclick="saveSettings()">💾 保存设置</button>';
+}
+
+function getAccountSettingsHTML() {
+  var email = (currentUser && currentUser.email) ? currentUser.email : 'guest@geomodel3d.com';
+  return '<div class="prop-table">' +
+    '<div class="prop-row"><span class="prop-label">用户邮箱</span><span class="prop-value">' + email + '</span></div>' +
+    '<div class="prop-row"><span class="prop-label">账户类型</span><span class="prop-value">' + (currentUser ? '注册用户' : '游客') + '</span></div>' +
+    '<div class="prop-row"><span class="prop-label">注册时间</span><span class="prop-value">2026-07-01</span></div>' +
+    '<div class="prop-row"><span class="prop-label">上次登录</span><span class="prop-value">' + new Date().toLocaleString('zh-CN') + '</span></div>' +
+    '</div>' +
+    '<div style="margin-top:var(--space-4);display:flex;gap:var(--space-3);">' +
+    '<button class="btn btn-secondary" onclick="showToast(\'修改密码功能已打开\')">🔑 修改密码</button>' +
+    '<button class="btn btn-secondary" onclick="showToast(\'数据已清除\', \'success\')">🗑 清除缓存</button>' +
+    '</div>';
+}
+
+function getUnitsSettingsHTML() {
+  return '<div class="form-group"><label class="form-label">长度单位</label>' +
+    '<select class="form-select" onchange="showToast(\'单位已切换\')"><option>米 (m)</option><option>英尺 (ft)</option><option>千米 (km)</option></select></div>' +
+    '<div class="form-group"><label class="form-label">面积单位</label>' +
+    '<select class="form-select" onchange="showToast(\'单位已切换\')"><option>平方米 (m²)</option><option>公顷</option><option>平方千米 (km²)</option></select></div>' +
+    '<div class="form-group"><label class="form-label">坐标格式</label>' +
+    '<select class="form-select" onchange="showToast(\'坐标格式已切换\')"><option>经纬度 (度)</option><option>经纬度 (度分秒)</option><option>投影坐标 (X,Y)</option></select></div>' +
+    '<div class="form-group"><label class="form-label">默认坐标系</label>' +
+    '<select class="form-select" onchange="showToast(\'坐标系已切换\')"><option>CGCS2000</option><option>WGS84</option><option>Beijing 1954</option><option>Xi\'an 1980</option></select></div>' +
+    '<button class="btn btn-primary" style="margin-top:var(--space-4);" onclick="saveSettings()">💾 保存设置</button>';
+}
+
+function getNotificationSettingsHTML() {
+  return '<div class="toggle-row"><span class="toggle-label">系统通知</span><div class="toggle active" onclick="this.classList.toggle(\'active\');showToast(this.classList.contains(\'active\')?\'通知已开启\':\'通知已关闭\')"></div></div>' +
+    '<div class="toggle-row"><span class="toggle-label">操作提示</span><div class="toggle active" onclick="this.classList.toggle(\'active\');showToast(this.classList.contains(\'active\')?\'提示已开启\':\'提示已关闭\')"></div></div>' +
+    '<div class="toggle-row"><span class="toggle-label">错误警报</span><div class="toggle active" onclick="this.classList.toggle(\'active\');showToast(this.classList.contains(\'active\')?\'警报已开启\':\'警报已关闭\')"></div></div>' +
+    '<div class="toggle-row"><span class="toggle-label">邮件通知</span><div class="toggle" onclick="this.classList.toggle(\'active\');showToast(this.classList.contains(\'active\')?\'邮件通知已开启\':\'邮件通知已关闭\')"></div></div>' +
+    '<div class="toggle-row"><span class="toggle-label">声音提醒</span><div class="toggle" onclick="this.classList.toggle(\'active\');showToast(this.classList.contains(\'active\')?\'声音已开启\':\'声音已关闭\')"></div></div>' +
+    '<button class="btn btn-primary" style="margin-top:var(--space-4);" onclick="saveSettings()">💾 保存设置</button>';
+}
+
+function getApiSettingsHTML() {
+  return '<div class="form-group"><label class="form-label">API Key</label>' +
+    '<input type="text" class="form-input" placeholder="输入API密钥" value="sk-geomodel-xxxxx"></div>' +
+    '<div class="form-group"><label class="form-label">API 地址</label>' +
+    '<input type="text" class="form-input" value="https://api.geomodel3d.com/v1"></div>' +
+    '<div class="toggle-row"><span class="toggle-label">启用API同步</span><div class="toggle" onclick="this.classList.toggle(\'active\');showToast(this.classList.contains(\'active\')?\'API同步已开启\':\'API同步已关闭\')"></div></div>' +
+    '<div class="toggle-row"><span class="toggle-label">自动备份到云端</span><div class="toggle" onclick="this.classList.toggle(\'active\');showToast(this.classList.contains(\'active\')?\'云备份已开启\':\'云备份已关闭\')"></div></div>' +
+    '<button class="btn btn-primary" style="margin-top:var(--space-4);" onclick="testApiConnection()">🔌 测试连接</button> ' +
+    '<button class="btn btn-secondary" onclick="saveSettings()">💾 保存设置</button>';
+}
+
+function testApiConnection() {
+  showToast('正在测试API连接...', 'info');
+  setTimeout(function() { showToast('API连接成功', 'success'); }, 1000);
+}
+
+function getBackupSettingsHTML() {
+  return '<div class="form-group"><label class="form-label">自动备份</label>' +
+    '<select class="form-select" onchange="showToast(\'备份频率已设置\')"><option>每天</option><option>每周</option><option>每月</option><option>手动</option></select></div>' +
+    '<div style="display:flex;gap:var(--space-3);margin-top:var(--space-4);">' +
+    '<button class="btn btn-primary" onclick="backupDataNow()">💾 立即备份</button>' +
+    '<button class="btn btn-secondary" onclick="restoreData()">📂 恢复数据</button>' +
+    '</div>' +
+    '<div style="margin-top:var(--space-4);padding:12px;background:var(--bg-glass-2);border-radius:6px;font-size:12px;color:var(--text-300);">' +
+    '上次备份: ' + new Date().toLocaleString('zh-CN') + '<br>备份大小: 24.5 MB<br>备份位置: 本地存储' +
+    '</div>';
+}
+
+function backupDataNow() {
+  var data = {
+    timestamp: new Date().toISOString(),
+    drillData: sampleDrillData,
+    settings: { theme: currentTheme }
+  };
+  var blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'GeoModel3D_备份_' + new Date().toISOString().split('T')[0] + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('数据备份已下载', 'success');
+}
+
+function restoreData() {
+  var input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = function(e) {
+    var file = e.target.files[0];
+    if (file) showToast('正在恢复数据...', 'info');
+    setTimeout(function() { showToast('数据恢复成功', 'success'); }, 1000);
+  };
+  input.click();
+}
+
+function getAboutSettingsHTML() {
+  return '<div style="text-align:center;padding:var(--space-4);">' +
+    '<div style="font-size:48px;margin-bottom:12px;">🏔️</div>' +
+    '<div style="font-size:18px;font-weight:600;color:var(--text-100);margin-bottom:4px;">GeoModel3D Pro</div>' +
+    '<div style="font-size:12px;color:var(--text-400);margin-bottom:16px;">版本 3.0.0 | 构建 2026.07.26</div>' +
+    '<div style="font-size:12px;color:var(--text-300);line-height:1.8;">三维地质建模与可视化系统<br>支持钻孔管理、地层建模、矿体圈定、储量估算<br>专业绘图、剖面分析、数据导出</div>' +
+    '<div style="margin-top:16px;display:flex;gap:var(--space-3);justify-content:center;">' +
+    '<button class="btn btn-sm btn-secondary" onclick="showToast(\'检查更新中...\');setTimeout(function(){showToast(\'当前为最新版本\',\'success\')},1000)">🔄 检查更新</button>' +
+    '<button class="btn btn-sm btn-secondary" onclick="showToast(\'技术支持: support@geomodel3d.com\')">📧 技术支持</button>' +
+    '</div></div>';
+}
+
+function setThemeMode(mode, el) {
+  currentTheme = mode;
+  localStorage.setItem('themeMode', mode);
+
+  // 更新选项高亮
+  document.querySelectorAll('.theme-option').forEach(function(opt) {
+    opt.classList.remove('active');
+    opt.style.border = '2px solid var(--border)';
+    opt.style.background = 'transparent';
+  });
+  if (el) {
+    el.classList.add('active');
+    el.style.border = '2px solid var(--primary)';
+    el.style.background = 'rgba(0,212,255,0.05)';
+  }
+
+  // 应用主题
+  applyTheme(mode);
+  showToast('主题已切换到: ' + (mode === 'dark' ? '深色模式' : mode === 'light' ? '浅色模式' : '跟随系统'));
+}
+
+function applyTheme(mode) {
+  var root = document.documentElement;
+  if (mode === 'light') {
+    root.setAttribute('data-theme', 'light');
+    root.style.setProperty('--bg-primary', '#f0f4f8');
+    root.style.setProperty('--bg-secondary', '#ffffff');
+    root.style.setProperty('--bg-glass', 'rgba(255,255,255,0.8)');
+    root.style.setProperty('--bg-glass-2', 'rgba(240,244,248,0.9)');
+    root.style.setProperty('--text-100', '#1a202c');
+    root.style.setProperty('--text-200', '#2d3748');
+    root.style.setProperty('--text-300', '#4a5568');
+    root.style.setProperty('--text-400', '#718096');
+    root.style.setProperty('--border', '#e2e8f0');
+    root.style.setProperty('--border-strong', '#cbd5e0');
+  } else if (mode === 'system') {
+    var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    applyTheme(prefersDark ? 'dark' : 'light');
+    // 监听系统主题变化
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (currentTheme === 'system') applyTheme(e.matches ? 'dark' : 'light');
+    });
+  } else {
+    // 深色模式（默认）
+    root.removeAttribute('data-theme');
+    root.style.setProperty('--bg-primary', '#0a0e1a');
+    root.style.setProperty('--bg-secondary', '#0f1525');
+    root.style.setProperty('--bg-glass', 'rgba(15,21,37,0.8)');
+    root.style.setProperty('--bg-glass-2', 'rgba(10,14,26,0.9)');
+    root.style.setProperty('--text-100', '#f1f5f9');
+    root.style.setProperty('--text-200', '#e2e8f0');
+    root.style.setProperty('--text-300', '#94a3b8');
+    root.style.setProperty('--text-400', '#64748b');
+    root.style.setProperty('--border', '#1e293b');
+    root.style.setProperty('--border-strong', '#334155');
+  }
+}
+
+function setThemeColor(color, el) {
+  document.querySelectorAll('.color-swatch').forEach(function(s) { s.classList.remove('active'); });
+  if (el) el.classList.add('active');
+  document.documentElement.style.setProperty('--primary', color);
+  localStorage.setItem('themeColor', color);
+  showToast('主题色已更换');
+}
+
+// --- 9. 语音录入 - Web Speech API ---
+var voiceRecognition = null;
+var voiceActive = false;
+
+function startVoiceInput() {
+  var textarea = document.querySelector('#viewFieldwork textarea');
+  var voiceBtn = document.getElementById('voiceBtn');
+
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    showToast('浏览器不支持语音识别，请使用Chrome', 'warning');
+    // 降级：使用文本输入提示
+    if (textarea) {
+      textarea.focus();
+      textarea.placeholder = '浏览器不支持语音识别，请直接输入文字描述...';
+    }
+    return;
+  }
+
+  if (voiceActive) {
+    // 停止
+    if (voiceRecognition) voiceRecognition.stop();
+    voiceActive = false;
+    if (voiceBtn) voiceBtn.textContent = '🎤 语音';
+    showToast('语音录入已停止', 'info');
+    return;
+  }
+
+  voiceRecognition = new SR();
+  voiceRecognition.lang = 'zh-CN';
+  voiceRecognition.continuous = true;
+  voiceRecognition.interimResults = true;
+
+  voiceRecognition.onstart = function() {
+    voiceActive = true;
+    if (voiceBtn) voiceBtn.textContent = '⏹ 停止';
+    showToast('语音识别已启动，请说话...', 'info');
+  };
+
+  voiceRecognition.onresult = function(event) {
+    var finalText = '';
+    var interimText = '';
+    for (var i = event.resultIndex; i < event.results.length; i++) {
+      if (event.results[i].isFinal) {
+        finalText += event.results[i][0].transcript;
+      } else {
+        interimText += event.results[i][0].transcript;
+      }
+    }
+    if (textarea) {
+      var existing = textarea.value;
+      if (finalText) {
+        textarea.value = existing + finalText;
+      }
+      // 显示临时结果
+      if (interimText) {
+        showToast('识别中: ' + interimText, 'info');
+      }
+    }
+  };
+
+  voiceRecognition.onerror = function(event) {
+    showToast('语音识别错误: ' + event.error, 'warning');
+    voiceActive = false;
+    if (voiceBtn) voiceBtn.textContent = '🎤 语音';
+  };
+
+  voiceRecognition.onend = function() {
+    voiceActive = false;
+    if (voiceBtn) voiceBtn.textContent = '🎤 语音';
+    showToast('语音录入完成', 'success');
+  };
+
+  try {
+    voiceRecognition.start();
+  } catch(e) {
+    showToast('语音识别启动失败: ' + e.message, 'warning');
+  }
+}
+
+// --- 10. 剖面导出图片 ---
+function exportSectionImage() {
+  var svg = document.querySelector('#viewSection svg');
+  if (!svg) { showToast('未找到剖面图', 'warning'); return; }
+
+  // 将SVG转为图片下载
+  var svgData = new XMLSerializer().serializeToString(svg);
+  var canvas = document.createElement('canvas');
+  canvas.width = 800;
+  canvas.height = 400;
+  var ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#0d1520';
+  ctx.fillRect(0, 0, 800, 400);
+
+  var img = new Image();
+  var blob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  img.onload = function() {
+    ctx.drawImage(img, 0, 0, 800, 400);
+    URL.revokeObjectURL(url);
+    canvas.toBlob(function(blob) {
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = '剖面图_' + new Date().toISOString().split('T')[0] + '.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      showToast('剖面图已导出', 'success');
+    });
+  };
+  img.src = url;
+}
+
+function newSection() {
+  showToast('请在3D视图中选择剖面线位置', 'info');
+  // 切换到3D视图
+  switchView('model');
+  setTimeout(function() {
+    showToast('使用鼠标点击两个点定义剖面线', 'info');
+  }, 500);
+}
+
+// --- 初始化所有新功能 ---
+function initAllNewFeatures() {
+  // 初始化属性面板控件
+  initPropertyPanelControls();
+
+  // 捕获3D场景引用
+  setTimeout(function() {
+    captureSceneRefs();
+    // 如果场景已存在，立即捕获
+    if (threeScene) captureSceneRefs();
+  }, 500);
+
+  // 初始化地图点击打卡
+  setTimeout(function() {
+    if (leafletMap) {
+      initMapClickHandler();
+    } else {
+      // 延迟重试，地图可能还未初始化
+      var retryCount = 0;
+      var retryInterval = setInterval(function() {
+        if (leafletMap) {
+          initMapClickHandler();
+          clearInterval(retryInterval);
+        }
+        retryCount++;
+        if (retryCount > 20) clearInterval(retryInterval);
+      }, 500);
+    }
+  }, 1000);
+
+  // 应用保存的主题
+  var savedTheme = localStorage.getItem('themeMode');
+  if (savedTheme) {
+    currentTheme = savedTheme;
+    applyTheme(savedTheme);
+  }
+
+  // 初始化储量估算预览
+  previewEstimation();
+
+  console.log('[Init] 所有新功能已初始化');
+}
+
+// 在DOMContentLoaded后初始化
+document.addEventListener('DOMContentLoaded', function() {
+  setTimeout(initAllNewFeatures, 1500);
+});
+
   // 智能绑定所有按钮事件
   autoBindButtons();
 
