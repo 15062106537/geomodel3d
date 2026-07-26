@@ -7073,7 +7073,123 @@ function startEstimation() {
     var results = calculateReserveByMethod(method);
     updateReserveResultTable(results, methodName);
     showToast('储量估算完成 [' + methodName + ']', 'success');
+
+    // 在结果卡片下方添加"查看地图分布"按钮
+    addReserveMapButton(results, methodName);
   }, 1500);
+}
+
+// 添加储量结果关联地图按钮
+function addReserveMapButton(results, methodName) {
+  var resultCard = document.querySelector('#viewAnalysis .card:last-child');
+  if (!resultCard) return;
+
+  // 移除已有按钮
+  var existingBtn = document.getElementById('reserveMapBtn');
+  if (existingBtn) existingBtn.remove();
+
+  var mapBtn = document.createElement('button');
+  mapBtn.id = 'reserveMapBtn';
+  mapBtn.className = 'btn btn-primary btn-block btn-lg';
+  mapBtn.style.cssText = 'margin-top:var(--space-3);background:linear-gradient(135deg,#14b8a6,#0d9488);';
+  mapBtn.innerHTML = '🗺️ 查看矿体储量地图分布';
+  mapBtn.onclick = function() { showReserveOnMap(results, methodName); };
+  resultCard.querySelector('.card-body').appendChild(mapBtn);
+}
+
+// 在地图上显示储量估算结果
+function showReserveOnMap(results, methodName) {
+  // 切换到地图视图
+  var navMap = document.querySelector('[onclick*="switchView"][onclick*="\'map\'"]') ||
+               document.querySelector('.nav-item[onclick*="map"]');
+  switchView('map', navMap);
+
+  setTimeout(function() {
+    if (!leafletMap) { showToast('地图正在加载...', 'info'); return; }
+    leafletMap.invalidateSize();
+
+    // 矿体在地图上的坐标（基于3D场景中矿体位置映射到地理坐标）
+    var oreLocations = [
+      { name: 'I号矿体', lat: 36.0611, lng: 103.8343, ore: results.rows[0].ore, grade: results.rows[0].grade, metal: results.rows[0].metal, color: '#ffd700' },
+      { name: 'II号矿体', lat: 36.0525, lng: 103.8517, ore: results.rows[1].ore, grade: results.rows[1].grade, metal: results.rows[1].metal, color: '#c0c0c0' },
+      { name: 'III号矿体', lat: 36.0680, lng: 103.8260, ore: results.rows[2].ore, grade: results.rows[2].grade, metal: results.rows[2].metal, color: '#b87333' }
+    ];
+
+    // 清除之前的储量标记
+    if (window._reserveMarkers) {
+      window._reserveMarkers.forEach(function(m) { leafletMap.removeLayer(m); });
+    }
+    window._reserveMarkers = [];
+
+    // 为每个矿体添加标记
+    oreLocations.forEach(function(o) {
+      // 根据储量大小决定圆的半径
+      var radius = Math.max(200, Math.min(800, o.ore * 1.2));
+
+      var circle = L.circle([o.lat, o.lng], {
+        radius: radius,
+        fillColor: o.color,
+        color: '#fff',
+        weight: 2,
+        opacity: 1,
+        fillOpacity: 0.5
+      }).addTo(leafletMap);
+      window._reserveMarkers.push(circle);
+
+      // 添加标签标记
+      var marker = L.marker([o.lat, o.lng], {
+        icon: L.divIcon({
+          className: 'reserve-marker',
+          html: '<div style="background:' + o.color + ';color:#fff;padding:4px 10px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.4);">' + o.name + '</div>',
+          iconSize: [80, 24],
+          iconAnchor: [40, 12]
+        })
+      }).addTo(leafletMap);
+
+      marker.bindPopup(
+        '<div style="font-size:14px;line-height:1.8;min-width:220px;">' +
+        '<div style="font-size:16px;font-weight:700;color:' + o.color + ';margin-bottom:6px;border-bottom:1px solid #ddd;padding-bottom:4px;">' + o.name + '</div>' +
+        '<div style="color:#333;"><b>资源量:</b> ' + o.ore + ' 万t</div>' +
+        '<div style="color:#333;"><b>平均品位:</b> ' + o.grade.toFixed(2) + '%</div>' +
+        '<div style="color:#333;"><b>金属量:</b> ' + o.metal.toFixed(2) + ' 万t</div>' +
+        '<div style="color:#666;font-size:12px;margin-top:4px;">估算方法: ' + methodName + '</div>' +
+        '<div style="color:#666;font-size:12px;">坐标: ' + o.lat.toFixed(4) + ', ' + o.lng.toFixed(4) + '</div>' +
+        '</div>'
+      );
+      window._reserveMarkers.push(marker);
+    });
+
+    // 添加汇总信息框
+    var totalOre = results.total.ore;
+    var totalMetal = results.total.metal;
+    var summaryHtml =
+      '<div style="padding:12px;background:rgba(20,184,166,0.95);color:#fff;border-radius:8px;font-size:13px;line-height:1.6;min-width:200px;">' +
+      '<div style="font-size:15px;font-weight:700;margin-bottom:6px;">📊 储量估算汇总</div>' +
+      '<div>总资源量: <b>' + totalOre + ' 万t</b></div>' +
+      '<div>总金属量: <b>' + totalMetal.toFixed(2) + ' 万t</b></div>' +
+      '<div style="font-size:11px;margin-top:4px;opacity:0.8;">方法: ' + methodName + '</div>' +
+      '</div>';
+
+    var summaryControl = L.control({ position: 'topright' });
+    summaryControl.onAdd = function() {
+      var div = L.DomUtil.create('div');
+      div.innerHTML = summaryHtml;
+      div.id = 'reserveSummaryControl';
+      return div;
+    };
+    // 移除旧控件
+    if (window._reserveSummaryControl) {
+      leafletMap.removeControl(window._reserveSummaryControl);
+    }
+    summaryControl.addTo(leafletMap);
+    window._reserveSummaryControl = summaryControl;
+
+    // 缩放到包含所有矿体
+    var bounds = L.latLngBounds(oreLocations.map(function(o) { return [o.lat, o.lng]; }));
+    leafletMap.fitBounds(bounds, { padding: [80, 80] });
+
+    showToast('储量结果已在地图上标注，点击矿体查看详情', 'success');
+  }, 500);
 }
 
 function previewEstimation() {
@@ -7773,13 +7889,184 @@ function exportSectionImage() {
   img.src = url;
 }
 
+// --- 新建剖面：交互式剖面线绘制 ---
+var sectionDrawMode = false;
+var sectionDrawPoints = [];
+var sectionDrawLine = null;
+var sectionDrawMarkers = [];
+
 function newSection() {
-  showToast('请在3D视图中选择剖面线位置', 'info');
-  // 切换到3D视图
-  switchView('model');
+  // 切换到3D视图（正确视图名为 '3d'）
+  var nav3d = document.querySelector('[onclick*="switchView"][onclick*="\'3d\'"]') ||
+              document.querySelector('.nav-item[onclick*="3d"]');
+  switchView('3d', nav3d);
+
   setTimeout(function() {
-    showToast('使用鼠标点击两个点定义剖面线', 'info');
+    if (!threeScene || !threeCamera) { showToast('3D场景未就绪', 'warning'); return; }
+    initMeasureRaycaster();
+
+    // 进入剖面线绘制模式
+    sectionDrawMode = true;
+    sectionDrawPoints = [];
+
+    // 清除之前的绘制
+    if (sectionDrawLine) { threeScene.remove(sectionDrawLine); sectionDrawLine = null; }
+    sectionDrawMarkers.forEach(function(m) { threeScene.remove(m); });
+    sectionDrawMarkers = [];
+
+    var canvas = document.getElementById('threeCanvas');
+    if (canvas) {
+      canvas.style.cursor = 'crosshair';
+      canvas.addEventListener('click', onSectionDrawClick);
+    }
+
+    // 添加提示条
+    var tipDiv = document.createElement('div');
+    tipDiv.id = 'sectionDrawTip';
+    tipDiv.style.cssText = 'position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1000;background:rgba(20,184,166,0.95);color:#fff;padding:8px 20px;border-radius:20px;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,0.3);pointer-events:none;';
+    tipDiv.innerHTML = '✂️ 点击两个点定义剖面线（已选 0/2）';
+    canvas.parentElement.appendChild(tipDiv);
+
+    showToast('请在3D视图中点击两个点来定义剖面线', 'info');
   }, 500);
+}
+
+function onSectionDrawClick(event) {
+  if (!sectionDrawMode || !threeScene) return;
+
+  var canvas = document.getElementById('threeCanvas');
+  var rect = canvas.getBoundingClientRect();
+  if (!mouse) mouse = new THREE.Vector2();
+  mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouse, threeCamera);
+
+  // 射线检测
+  var meshes = stratumMeshes.concat(oreMeshes);
+  var intersects = raycaster.intersectObjects(meshes);
+  var point;
+  if (intersects.length > 0) {
+    point = intersects[0].point;
+  } else {
+    var planeY = new THREE.Plane(new THREE.Vector3(0, 1, 0), 50);
+    point = new THREE.Vector3();
+    raycaster.ray.intersectPlane(planeY, point);
+    if (!point) return;
+  }
+
+  sectionDrawPoints.push(point);
+
+  // 添加标记球
+  var ballGeo = new THREE.SphereGeometry(3, 16, 12);
+  var ballMat = new THREE.MeshBasicMaterial({ color: 0x14b8a6 });
+  var ball = new THREE.Mesh(ballGeo, ballMat);
+  ball.position.copy(point);
+  threeScene.add(ball);
+  sectionDrawMarkers.push(ball);
+
+  // 更新提示
+  var tip = document.getElementById('sectionDrawTip');
+  if (tip) tip.innerHTML = '✂️ 点击两个点定义剖面线（已选 ' + sectionDrawPoints.length + '/2）';
+
+  if (sectionDrawPoints.length === 2) {
+    // 绘制剖面线
+    var lineGeo = new THREE.BufferGeometry().setFromPoints(sectionDrawPoints);
+    var lineMat = new THREE.LineDashedMaterial({ color: 0x14b8a6, dashSize: 8, gapSize: 4, linewidth: 3 });
+    sectionDrawLine = new THREE.Line(lineGeo, lineMat);
+    sectionDrawLine.computeLineDistances();
+    threeScene.add(sectionDrawLine);
+
+    // 添加端点发光球
+    sectionDrawPoints.forEach(function(p) {
+      var glowGeo = new THREE.SphereGeometry(5, 16, 12);
+      var glowMat = new THREE.MeshBasicMaterial({ color: 0x14b8a6, transparent: true, opacity: 0.3 });
+      var glow = new THREE.Mesh(glowGeo, glowMat);
+      glow.position.copy(p);
+      threeScene.add(glow);
+      sectionDrawMarkers.push(glow);
+    });
+
+    // 退出绘制模式
+    sectionDrawMode = false;
+    canvas.style.cursor = '';
+    canvas.removeEventListener('click', onSectionDrawClick);
+    var tipEl = document.getElementById('sectionDrawTip');
+    if (tipEl) tipEl.remove();
+
+    // 计算剖面距离
+    var dist = sectionDrawPoints[0].distanceTo(sectionDrawPoints[1]);
+
+    // 更新剖面视图SVG
+    updateSectionSVGFromPoints(sectionDrawPoints, dist);
+
+    showToast('剖面线已创建，长度: ' + dist.toFixed(1) + 'm，正在切换到剖面视图...', 'success');
+
+    // 2秒后切换到剖面视图
+    setTimeout(function() {
+      var navSection = document.querySelector('[onclick*="switchView"][onclick*="\'section\'"]') ||
+                       document.querySelector('.nav-item[onclick*="section"]');
+      switchView('section', navSection);
+    }, 2000);
+  }
+}
+
+// 根据绘制的剖面线更新剖面视图SVG
+function updateSectionSVGFromPoints(points, dist) {
+  var svg = document.querySelector('#viewSection svg');
+  if (!svg) return;
+
+  // 更新剖面位置滑动条
+  var avgX = (points[0].x + points[1].x) / 2;
+  var posSlider = document.getElementById('sectionPosXSlider');
+  var posVal = document.getElementById('sectionPosXValue');
+  if (posSlider) {
+    var sliderVal = Math.round((avgX + 200) / 400 * 2000);
+    posSlider.value = Math.max(0, Math.min(2000, sliderVal));
+  }
+  if (posVal) posVal.textContent = Math.max(0, Math.min(2000, sliderVal)) + ' m';
+
+  // 更新方向选择
+  var dx = points[1].x - points[0].x;
+  var dz = points[1].z - points[0].z;
+  var angle = Math.atan2(dz, dx) * 180 / Math.PI;
+  var dirSelect = document.getElementById('sectionDirection');
+  if (dirSelect) {
+    if (Math.abs(angle) < 45 || Math.abs(angle) > 135) {
+      dirSelect.value = 'AA';
+    } else {
+      dirSelect.value = 'BB';
+    }
+  }
+
+  // 更新SVG剖面图 - 根据剖面线重新绘制地层
+  var x1Ratio = (points[0].x + 200) / 400;
+  var x2Ratio = (points[1].x + 200) / 400;
+
+  // 更新钻孔线位置（基于剖面线端点）
+  var drillLines = svg.querySelectorAll('line[stroke="#00d4ff"]');
+  drillLines.forEach(function(line, i) {
+    var ratio = i === 0 ? x1Ratio : (i === 1 ? (x1Ratio + x2Ratio) / 2 : x2Ratio);
+    var xPos = ratio * 800;
+    line.setAttribute('x1', xPos);
+    line.setAttribute('x2', xPos);
+  });
+
+  // 添加剖面线标注
+  var existingLabel = svg.querySelector('#sectionLabel');
+  if (existingLabel) existingLabel.remove();
+  var labelText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  labelText.setAttribute('id', 'sectionLabel');
+  labelText.setAttribute('x', '400');
+  labelText.setAttribute('y', '30');
+  labelText.setAttribute('fill', '#14b8a6');
+  labelText.setAttribute('font-size', '14');
+  labelText.setAttribute('font-weight', 'bold');
+  labelText.setAttribute('text-anchor', 'middle');
+  labelText.textContent = '剖面长度: ' + dist.toFixed(1) + 'm  方位: ' + angle.toFixed(0) + '°';
+  svg.appendChild(labelText);
+
+  // 触发剖面视图更新
+  updateSectionView();
 }
 
 // --- 初始化所有新功能 ---
