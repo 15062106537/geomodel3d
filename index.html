@@ -4170,13 +4170,14 @@ function init3DSceneInternal() {
   oreBodiesInit.forEach(function(o) {
     var og = new THREE.SphereGeometry(o.radius, 32, 24);
     og.scale(o.scale[0], o.scale[1], o.scale[2]);
+    var oreOpacity = o.status === '推测' ? 0.82 : 0.92;
     var om = new THREE.MeshPhongMaterial({
       color: o.color, emissive: o.emissive, emissiveIntensity: 0.3,
-      shininess: 80, transparent: true, opacity: o.status === '推测' ? 0.6 : 0.88
+      shininess: 80, transparent: true, opacity: oreOpacity
     });
     var mesh = new THREE.Mesh(og, om);
     mesh.position.set(o.pos[0], o.pos[1], o.pos[2]);
-    mesh.userData = { name: o.name, type: 'ore', oreType: o.type, status: o.status };
+    mesh.userData = { name: o.name, type: 'ore', oreType: o.type, status: o.status, baseOpacity: oreOpacity, baseEmissive: 0.3 };
     threeScene.add(mesh);
     oreMeshes.push(mesh);
 
@@ -4293,6 +4294,12 @@ function init3DSceneInternal() {
     var t = Date.now() * 0.002;
     // 矿体微旋转
     oreMeshes.forEach(function(m, i) { m.rotation.y += 0.003 * (i % 2 === 0 ? 1 : -1); });
+    // 矿体不透明度保护：确保矿体始终清晰可见，不受任何意外修改影响
+    oreMeshes.forEach(function(m) {
+      if (m.material.opacity < 0.7 && !m.userData.flashing) {
+        m.material.opacity = m.userData.baseOpacity || 0.92;
+      }
+    });
     // 断层微闪烁
     faultMeshes.forEach(function(m) { m.material.opacity = 0.15 + Math.sin(t) * 0.05; });
     // 标记球脉冲
@@ -4940,7 +4947,10 @@ function toggleSection() {
   stratumMeshes.forEach(function(mesh, i) {
     mesh.material.opacity = sectionActive ? (i < 3 ? 0.15 : 0.85) : 0.75;
   });
-  if (oreMeshes.length) oreMeshes.forEach(function(m) { m.material.opacity = sectionActive ? 1.0 : 0.88; });
+  // 矿体始终保持原始不透明度，不受剖切影响
+  oreMeshes.forEach(function(m) {
+    m.material.opacity = m.userData.baseOpacity || 0.92;
+  });
   if (faultMeshes.length) faultMeshes.forEach(function(m) { m.material.opacity = sectionActive ? 0.35 : 0.2; });
   showToast(sectionActive ? '剖切模式已开启 - 上部地层已半透明' : '剖切模式已关闭');
 }
@@ -5638,16 +5648,38 @@ function startModeling(type) {
       m.material.wireframe = false;
       m.visible = true;
     });
+    // 确保矿体恢复原始状态
+    oreMeshes.forEach(function(m) {
+      m.material.opacity = m.userData.baseOpacity || 0.92;
+      m.material.wireframe = false;
+      m.material.emissiveIntensity = m.userData.baseEmissive || 0.3;
+      m.visible = true;
+    });
     setTimeout(function() { showToast('地层建模完成', 'success'); }, 1000);
 
   } else if (type === '矿体圈定') {
     showToast('正在执行: 矿体圈定...', 'info');
-    // 突出显示矿体
-    oreMeshes.forEach(function(m) {
-      m.material.opacity = 0.95;
-      m.material.emissiveIntensity = 0.5;
-    });
-    setTimeout(function() { showToast('矿体圈定完成', 'success'); }, 1000);
+    // 矿体高亮闪烁后恢复原始状态
+    var flashCount = 0;
+    var flashMax = 6;
+    var flashTimer = setInterval(function() {
+      oreMeshes.forEach(function(m) {
+        if (flashCount % 2 === 0) {
+          m.material.emissiveIntensity = 0.8;
+        } else {
+          m.material.emissiveIntensity = m.userData.baseEmissive || 0.3;
+        }
+      });
+      flashCount++;
+      if (flashCount >= flashMax) {
+        clearInterval(flashTimer);
+        oreMeshes.forEach(function(m) {
+          m.material.emissiveIntensity = m.userData.baseEmissive || 0.3;
+          m.material.opacity = m.userData.baseOpacity || 0.92;
+        });
+        showToast('矿体圈定完成', 'success');
+      }
+    }, 250);
 
   } else if (type === '剖切分析') {
     toggleSection();
@@ -6166,14 +6198,15 @@ function addSampleOreBodiesTo3D() {
     else if (o.shape === '层状') og.scale(1.4, 0.3, 1.0);
     else if (o.shape === '脉状') og.scale(2.0, 0.4, 0.5);
 
+    var oreOpacity = o.status === '推测' ? 0.78 : 0.92;
     var om = new THREE.MeshPhongMaterial({
       color: c.color, emissive: c.emissive, emissiveIntensity: 0.35,
       shininess: 80, transparent: true,
-      opacity: o.status === '推测' ? 0.55 : 0.88
+      opacity: oreOpacity
     });
     var mesh = new THREE.Mesh(og, om);
     mesh.position.set(o.center.x, o.center.y, o.center.z);
-    mesh.userData = { name: o.name, type: 'ore', oreType: o.type, status: o.status, grade: o.grade, tonnage: o.tonnage };
+    mesh.userData = { name: o.name, type: 'ore', oreType: o.type, status: o.status, grade: o.grade, tonnage: o.tonnage, baseOpacity: oreOpacity, baseEmissive: 0.35 };
     threeScene.add(mesh);
     oreMeshes.push(mesh);
 
@@ -6525,7 +6558,7 @@ var gridHelperRef = null;
 var axesHelperRef = null;
 
 function initPropertyPanelControls() {
-  // 不透明度滑块 - 只控制地层，矿体保持独立不透明度
+  // 不透明度滑块 - 只控制地层，矿体始终保持原始不透明度
   var opacitySlider = document.getElementById('opacitySlider');
   if (opacitySlider) {
     opacitySlider.addEventListener('input', function() {
@@ -6533,9 +6566,12 @@ function initPropertyPanelControls() {
       var opacityVal = document.getElementById('opacityValue');
       if (opacityVal) opacityVal.textContent = val + '%';
       var opacity = val / 100;
-      // 仅控制地层透明度，矿体始终保持清晰可见
+      // 仅控制地层透明度
       stratumMeshes.forEach(function(m) { m.material.opacity = opacity; });
-      // 矿体不透明度保持初始值不变（已圈定0.88/推测0.6），确保矿体始终可见
+      // 矿体始终保持各自的原始不透明度，确保清晰可见
+      oreMeshes.forEach(function(m) {
+        m.material.opacity = m.userData.baseOpacity || 0.92;
+      });
     });
   }
 
@@ -6590,12 +6626,13 @@ function captureSceneRefs() {
   });
 }
 
-// 线框模式 - 只控制地层，矿体保持实体
+// 线框模式 - 只控制地层，矿体始终保持实体
 function toggleWireframeMode(el) {
   el.classList.toggle('active');
   var active = el.classList.contains('active');
   stratumMeshes.forEach(function(m) { m.material.wireframe = active; });
-  // 矿体不切换线框模式，保持实体显示确保清晰可见
+  // 矿体永远保持实体显示，绝不切换线框
+  oreMeshes.forEach(function(m) { m.material.wireframe = false; });
   showToast(active ? '线框模式已开启（仅地层）' : '线框模式已关闭');
 }
 
