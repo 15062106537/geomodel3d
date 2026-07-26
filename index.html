@@ -4881,10 +4881,144 @@ function generateGeoRecord() {
 }
 
 // 数据管理操作
-function handleDataFilter() { showToast('数据筛选面板已打开'); }
-function handleDataExport() { showToast('数据导出中...', 'info'); setTimeout(function(){ showToast('数据导出成功', 'success'); }, 1200); }
-function handleDataView(name) { showToast('查看: ' + name); }
-function handleDataEdit(name) { showToast('编辑: ' + name); }
+function handleDataFilter() {
+  showToast('数据筛选已启用，可在搜索框输入关键词', 'info');
+  var search = document.getElementById('globalSearch');
+  if (search) { search.focus(); search.placeholder = '输入钻孔编号或类型筛选...'; }
+}
+
+function handleDataExport() {
+  if (sampleDataLoaded && sampleDrillData.length > 0) {
+    exportSampleCSV();
+  } else {
+    showToast('数据导出中...', 'info');
+    setTimeout(function(){ showToast('数据导出成功', 'success'); }, 1200);
+  }
+}
+
+// 查看数据详情 - 弹出详情面板
+function handleDataView(name) {
+  var drill = sampleDrillData.find(function(d) { return d.id === name; });
+  var section = sampleSectionData.find(function(s) { return s.id === name; });
+  var geophys = sampleGeophysData.find(function(g) { return g.id === name; });
+
+  var html = '';
+  if (drill) {
+    html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;font-size:13px;">' +
+      '<div><span style="color:var(--text-400);">钻孔编号</span><br><b>' + drill.id + '</b></div>' +
+      '<div><span style="color:var(--text-400);">深度</span><br><b>' + drill.depth + ' 米</b></div>' +
+      '<div><span style="color:var(--text-400);">X坐标</span><br><b>' + drill.x + '</b></div>' +
+      '<div><span style="color:var(--text-400);">Z坐标</span><br><b>' + drill.z + '</b></div>' +
+      '<div><span style="color:var(--text-400);">层数</span><br><b>' + drill.layers + ' 层</b></div>' +
+      '<div><span style="color:var(--text-400);">品位</span><br><b style="color:var(--amber);">' + drill.oreGrade + '%</b></div>' +
+      '<div><span style="color:var(--text-400);">岩性</span><br><b>' + drill.lithology + '</b></div>' +
+      '<div><span style="color:var(--text-400);">倾角/方位角</span><br><b>' + drill.dipAngle + '° / ' + drill.azimuth + '°</b></div>' +
+      '<div><span style="color:var(--text-400);">状态</span><br><span class="tag tag-green">' + drill.status + '</span></div>' +
+      '<div><span style="color:var(--text-400);">日期</span><br><b>' + drill.date + '</b></div>' +
+      '</div>';
+  } else if (section) {
+    html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;font-size:13px;">' +
+      '<div><span style="color:var(--text-400);">剖面编号</span><br><b>' + section.id + '</b></div>' +
+      '<div><span style="color:var(--text-400);">名称</span><br><b>' + section.name + '</b></div>' +
+      '<div><span style="color:var(--text-400);">方向</span><br><b>' + section.direction + '</b></div>' +
+      '<div><span style="color:var(--text-400);">长度</span><br><b>' + section.length + ' km</b></div>' +
+      '<div><span style="color:var(--text-400);">钻孔数</span><br><b>' + section.drillCount + ' 个</b></div>' +
+      '<div><span style="color:var(--text-400);">最大深度</span><br><b>' + section.maxDepth + ' m</b></div>' +
+      '<div><span style="color:var(--text-400);">状态</span><br><span class="tag tag-' + (section.status === '已完成' ? 'green' : 'orange') + '">' + section.status + '</span></div>' +
+      '<div><span style="color:var(--text-400);">日期</span><br><b>' + section.date + '</b></div>' +
+      '</div>';
+  } else if (geophys) {
+    html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 24px;font-size:13px;">' +
+      '<div><span style="color:var(--text-400);">编号</span><br><b>' + geophys.id + '</b></div>' +
+      '<div><span style="color:var(--text-400);">方法</span><br><b>' + geophys.method + '</b></div>' +
+      '<div><span style="color:var(--text-400);">测线</span><br><b>' + geophys.line + '</b></div>' +
+      '<div><span style="color:var(--text-400);">长度</span><br><b>' + geophys.length + ' m</b></div>' +
+      '<div><span style="color:var(--text-400);">异常</span><br><b>' + geophys.anomaly + '</b></div>' +
+      '<div><span style="color:var(--text-400);">数值</span><br><b style="color:var(--amber);">' + geophys.value + '</b></div>' +
+      '<div><span style="color:var(--text-400);">状态</span><br><span class="tag tag-' + (geophys.status === '已处理' ? 'green' : 'blue') + '">' + geophys.status + '</span></div>' +
+      '<div><span style="color:var(--text-400);">日期</span><br><b>' + geophys.date + '</b></div>' +
+      '</div>';
+  } else {
+    html = '<div style="text-align:center;padding:20px;color:var(--text-400);">未找到 ' + name + ' 的详细信息<br>请先加载示例数据</div>';
+  }
+
+  showDataModal('📋 数据详情 - ' + name, html);
+}
+
+// 编辑数据 - 弹出编辑面板
+function handleDataEdit(name) {
+  var drill = sampleDrillData.find(function(d) { return d.id === name; });
+  if (!drill) {
+    showToast('请先加载示例数据再编辑', 'warning');
+    return;
+  }
+
+  var html = '<div style="font-size:13px;">' +
+    '<div style="margin-bottom:12px;"><label style="color:var(--text-400);display:block;margin-bottom:4px;">钻孔编号</label>' +
+    '<input type="text" id="edit-id" value="' + drill.id + '" style="width:100%;padding:8px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:6px;color:var(--text-100);"></div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">' +
+    '<div><label style="color:var(--text-400);display:block;margin-bottom:4px;">X坐标</label>' +
+    '<input type="number" id="edit-x" value="' + drill.x + '" style="width:100%;padding:8px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:6px;color:var(--text-100);"></div>' +
+    '<div><label style="color:var(--text-400);display:block;margin-bottom:4px;">Z坐标</label>' +
+    '<input type="number" id="edit-z" value="' + drill.z + '" style="width:100%;padding:8px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:6px;color:var(--text-100);"></div>' +
+    '<div><label style="color:var(--text-400);display:block;margin-bottom:4px;">深度(米)</label>' +
+    '<input type="number" id="edit-depth" value="' + drill.depth + '" step="0.1" style="width:100%;padding:8px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:6px;color:var(--text-100);"></div>' +
+    '<div><label style="color:var(--text-400);display:block;margin-bottom:4px;">品位(%)</label>' +
+    '<input type="number" id="edit-grade" value="' + drill.oreGrade + '" step="0.01" style="width:100%;padding:8px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:6px;color:var(--text-100);"></div>' +
+    '<div><label style="color:var(--text-400);display:block;margin-bottom:4px;">层数</label>' +
+    '<input type="number" id="edit-layers" value="' + drill.layers + '" style="width:100%;padding:8px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:6px;color:var(--text-100);"></div>' +
+    '<div><label style="color:var(--text-400);display:block;margin-bottom:4px;">岩性</label>' +
+    '<input type="text" id="edit-lithology" value="' + drill.lithology + '" style="width:100%;padding:8px;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:6px;color:var(--text-100);"></div>' +
+    '</div>' +
+    '<div style="margin-top:16px;display:flex;gap:8px;justify-content:flex-end;">' +
+    '<button class="btn btn-secondary" onclick="closeModal(\'dataModal\')">取消</button>' +
+    '<button class="btn btn-primary" onclick="saveDataEdit(\'' + name + '\')">保存修改</button>' +
+    '</div></div>';
+
+  showDataModal('✏️ 编辑数据 - ' + name, html);
+}
+
+// 保存数据编辑
+function saveDataEdit(name) {
+  var drill = sampleDrillData.find(function(d) { return d.id === name; });
+  if (!drill) return;
+
+  drill.id = document.getElementById('edit-id').value;
+  drill.x = parseFloat(document.getElementById('edit-x').value);
+  drill.z = parseFloat(document.getElementById('edit-z').value);
+  drill.depth = parseFloat(document.getElementById('edit-depth').value);
+  drill.oreGrade = parseFloat(document.getElementById('edit-grade').value);
+  drill.layers = parseInt(document.getElementById('edit-layers').value);
+  drill.lithology = document.getElementById('edit-lithology').value;
+
+  closeModal('dataModal');
+  updateDataTables();
+  addSampleDrillsTo3D();
+  showToast(name + ' 数据已更新', 'success');
+}
+
+// 通用数据弹窗
+function showDataModal(title, bodyHtml) {
+  var existing = document.getElementById('dataModal');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.className = 'modal-overlay show';
+  overlay.id = 'dataModal';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  overlay.onclick = function(e) { if (e.target === overlay) closeModal('dataModal'); };
+
+  var modal = document.createElement('div');
+  modal.style.cssText = 'background:var(--bg-secondary);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:520px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.5);';
+  modal.innerHTML =
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">' +
+    '<div style="font-size:16px;font-weight:600;color:var(--text-100);">' + title + '</div>' +
+    '<button onclick="closeModal(\'dataModal\')" style="background:none;border:none;color:var(--text-400);font-size:18px;cursor:pointer;">✕</button>' +
+    '</div><div>' + bodyHtml + '</div>';
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+}
 
 // 可视化图表生成
 function generateChart(type) {
@@ -5019,25 +5153,123 @@ function handleDataImport(e) {
   }
 }
 
-// 文件处理
+// 文件处理 - 真正解析CSV/TXT文件
 function handleFiles(files) {
-  var validExts = ['.csv', '.txt', '.xlsx', '.xls', '.json', '.geojson', '.las', '.dwg', '.shp'];
+  var validExts = ['.csv', '.txt'];
   var validCount = 0;
+  var csvFiles = [];
+
   for (var i = 0; i < files.length; i++) {
     var name = files[i].name.toLowerCase();
     var isValid = validExts.some(function(ext) { return name.endsWith(ext); });
     if (isValid) {
       validCount++;
+      csvFiles.push(files[i]);
     } else {
-      showToast('不支持的格式: ' + files[i].name, 'warning');
+      showToast('不支持的格式: ' + files[i].name + '（仅支持CSV/TXT）', 'warning');
     }
   }
+
   if (validCount > 0) {
     showToast('正在导入 ' + validCount + ' 个文件...', 'info');
-    setTimeout(function() {
-      showToast('数据导入成功: ' + validCount + ' 个文件', 'success');
-    }, 1500);
+    var processed = 0;
+
+    csvFiles.forEach(function(file) {
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          var text = e.target.result;
+          var imported = parseCSVData(text, file.name);
+          processed++;
+
+          if (processed === validCount) {
+            // 所有文件处理完成
+            updateDataTables();
+            addSampleDrillsTo3D();
+            updateDashboardStats();
+            showToast('导入完成: ' + validCount + ' 个文件，' + sampleDrillData.length + ' 条钻孔数据', 'success');
+          }
+        } catch(err) {
+          showToast('文件解析错误: ' + file.name, 'error');
+        }
+      };
+      reader.onerror = function() {
+        showToast('文件读取失败: ' + file.name, 'error');
+      };
+      reader.readAsText(file, 'UTF-8');
+    });
   }
+}
+
+// 解析CSV数据并添加到数据列表
+function parseCSVData(text, filename) {
+  var lines = text.split(/\r?\n/);
+  if (lines.length < 2) {
+    showToast(filename + ' 数据为空或格式不对', 'warning');
+    return 0;
+  }
+
+  // 解析表头
+  var headers = lines[0].split(',').map(function(h) { return h.trim().toLowerCase(); });
+
+  // 检查是否包含必要字段
+  var idIdx = headers.findIndex(function(h) { return h.includes('编号') || h.includes('id') || h.includes('hole'); });
+  var xIdx = headers.findIndex(function(h) { return h.includes('x') || h.includes('坐标') || h.includes('easting'); });
+  var zIdx = headers.findIndex(function(h) { return h.includes('z') || h.includes('north'); });
+  var depthIdx = headers.findIndex(function(h) { return h.includes('深度') || h.includes('depth'); });
+  var gradeIdx = headers.findIndex(function(h) { return h.includes('品位') || h.includes('grade'); });
+  var layersIdx = headers.findIndex(function(h) { return h.includes('层') || h.includes('layer'); });
+  var lithIdx = headers.findIndex(function(h) { return h.includes('岩') || h.includes('lith'); });
+
+  if (idIdx < 0) {
+    showToast(filename + ' 未找到钻孔编号列，需包含"编号"或"id"', 'warning');
+    return 0;
+  }
+
+  var importCount = 0;
+  for (var i = 1; i < lines.length; i++) {
+    var line = lines[i].trim();
+    if (!line) continue;
+
+    var cols = line.split(',');
+    if (cols.length < 2) continue;
+
+    var id = cols[idIdx] ? cols[idIdx].trim() : ('IMP-' + (sampleDrillData.length + 1));
+    if (!id) continue;
+
+    // 检查是否已存在
+    var existing = sampleDrillData.find(function(d) { return d.id === id; });
+    if (existing) {
+      // 更新已有记录
+      if (depthIdx >= 0 && cols[depthIdx]) existing.depth = parseFloat(cols[depthIdx]) || existing.depth;
+      if (gradeIdx >= 0 && cols[gradeIdx]) existing.oreGrade = parseFloat(cols[gradeIdx]) || existing.oreGrade;
+      if (xIdx >= 0 && cols[xIdx]) existing.x = parseFloat(cols[xIdx]) || existing.x;
+      if (zIdx >= 0 && cols[zIdx]) existing.z = parseFloat(cols[zIdx]) || existing.z;
+      if (layersIdx >= 0 && cols[layersIdx]) existing.layers = parseInt(cols[layersIdx]) || existing.layers;
+      if (lithIdx >= 0 && cols[lithIdx]) existing.lithology = cols[lithIdx].trim();
+    } else {
+      // 添加新记录
+      sampleDrillData.push({
+        id: id,
+        x: xIdx >= 0 && cols[xIdx] ? parseFloat(cols[xIdx]) || 0 : Math.floor(Math.random() * 200 - 100),
+        z: zIdx >= 0 && cols[zIdx] ? parseFloat(cols[zIdx]) || 0 : Math.floor(Math.random() * 200 - 100),
+        depth: depthIdx >= 0 && cols[depthIdx] ? parseFloat(cols[depthIdx]) || 100 : 100,
+        layers: layersIdx >= 0 && cols[layersIdx] ? parseInt(cols[layersIdx]) || 20 : 20,
+        oreGrade: gradeIdx >= 0 && cols[gradeIdx] ? parseFloat(cols[gradeIdx]) || 1.0 : 1.0,
+        status: '已导入',
+        date: new Date().toISOString().slice(0, 10),
+        type: '钻探数据',
+        format: 'CSV',
+        lithology: lithIdx >= 0 && cols[lithIdx] ? cols[lithIdx].trim() : '未描述',
+        dipAngle: 75,
+        azimuth: Math.floor(Math.random() * 360)
+      });
+      sampleDataLoaded = true;
+    }
+    importCount++;
+  }
+
+  return importCount;
 }
 
 // 数据清洗校验
@@ -5049,13 +5281,42 @@ function startDataValidation() {
   setTimeout(function() {
     btn.disabled = false;
     btn.textContent = originalText;
-    showToast('数据校验完成: 全部通过', 'success');
+    if (sampleDataLoaded && sampleDrillData.length > 0) {
+      var issues = 0;
+      sampleDrillData.forEach(function(d) {
+        if (isNaN(d.depth) || d.depth <= 0) issues++;
+        if (isNaN(d.oreGrade) || d.oreGrade < 0) issues++;
+        if (isNaN(d.x) || isNaN(d.z)) issues++;
+      });
+      if (issues === 0) {
+        showToast('数据校验完成: ' + sampleDrillData.length + ' 条全部通过', 'success');
+      } else {
+        showToast('数据校验完成: 发现 ' + issues + ' 处异常', 'warning');
+      }
+    } else {
+      showToast('数据校验完成: 全部通过', 'success');
+    }
   }, 1200);
 }
 
-// 快速格式导入
+// 快速格式导入 - 生成示例CSV模板下载
 function quickImport(format) {
-  document.getElementById('dataFile').click();
+  if (format === 'CSV') {
+    // 生成CSV模板供用户下载
+    var template = '钻孔编号,X坐标,Z坐标,深度(米),层数,品位(%),岩性,倾角,方位角,状态,日期\n';
+    template += 'ZK901,100,50,150.5,28,1.85,砂岩-灰岩,75,320,已校验,2026-07-26\n';
+    template += 'ZK902,-50,80,120.3,22,2.15,泥岩-灰岩,80,45,已校验,2026-07-26\n';
+    template += 'ZK903,30,-60,95.8,18,0.92,表土-砂岩,70,180,已校验,2026-07-26\n';
+    var blob = new Blob(['\uFEFF' + template], { type: 'text/csv;charset=utf-8;' });
+    var link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = '钻孔数据导入模板.csv';
+    link.click();
+    showToast('CSV模板已下载，填写后点击上方导入区域上传', 'success');
+  } else {
+    showToast(format + ' 格式导入：请点击上方拖拽区域选择文件', 'info');
+    document.getElementById('dataFile').click();
+  }
 }
 
 // 全局快捷键
@@ -5190,14 +5451,22 @@ function loadSampleData() {
   // 更新数据管理表格
   updateDataTables();
 
-  // 更新3D场景（17个钻孔）
-  addSampleDrillsTo3D();
-
   // 更新仪表盘统计数字
   updateDashboardStats();
 
   sampleDataLoaded = true;
   showToast('示例数据加载成功！17钻孔·7地层·3矿体·86记录·5剖面·12组物化探', 'success');
+
+  // 自动切换到3D视图并初始化场景
+  setTimeout(function() {
+    var nav3d = document.querySelectorAll('.nav-item')[2];
+    switchView('3d', nav3d);
+    setTimeout(function() {
+      init3DScene();
+      addSampleDrillsTo3D();
+      showToast('3D模型已更新，可旋转查看17个钻孔', 'info');
+    }, 200);
+  }, 500);
 }
 
 // 更新所有数据表格
