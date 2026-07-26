@@ -8,8 +8,20 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@300;400;500;600;700&family=Orbitron:wght@500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script>
+// Three.js 备用 CDN
+if (typeof THREE === 'undefined') {
+  document.write('<script src="https://unpkg.com/three@0.128.0/build/three.min.js"><\/script>');
+}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js" onerror="
+if (typeof THREE !== 'undefined' && !THREE.OrbitControls) {
+  var s = document.createElement('script');
+  s.src = 'https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js';
+  document.head.appendChild(s);
+}
+"></script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -3994,12 +4006,47 @@ var threeAnimId = null, stratumMeshes = [], oreMesh = null, drillHoles = [];
 var sectionPlane = null, measureLine = null;
 
 function init3DScene() {
-  if (threeScene) return; // 已初始化
-  if (typeof THREE === 'undefined') { console.error('[3D] Three.js 未加载'); return; }
+  if (typeof THREE === 'undefined') {
+    console.error('[3D] Three.js 未加载，尝试重新加载...');
+    // 尝试从备用 CDN 加载
+    var s1 = document.createElement('script');
+    s1.src = 'https://unpkg.com/three@0.128.0/build/three.min.js';
+    s1.onload = function() {
+      console.log('[3D] Three.js 从备用 CDN 加载成功');
+      var s2 = document.createElement('script');
+      s2.src = 'https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js';
+      s2.onload = function() { init3DSceneInternal(); };
+      document.head.appendChild(s2);
+    };
+    document.head.appendChild(s1);
+    return;
+  }
+  init3DSceneInternal();
+}
+
+function init3DSceneInternal() {
+  if (threeScene) {
+    // 已初始化，只需调整尺寸
+    var canvas = document.getElementById('threeCanvas');
+    if (canvas && threeRenderer && threeCamera) {
+      var w = canvas.clientWidth || 800;
+      var h = canvas.clientHeight || 600;
+      threeCamera.aspect = w / h;
+      threeCamera.updateProjectionMatrix();
+      threeRenderer.setSize(w, h);
+    }
+    return;
+  }
+
+  if (typeof THREE === 'undefined') { console.error('[3D] Three.js 仍未加载'); return; }
 
   var canvas = document.getElementById('threeCanvas');
-  var w = canvas.clientWidth || 800;
-  var h = canvas.clientHeight || 600;
+  var w = canvas.clientWidth || canvas.offsetWidth || 800;
+  var h = canvas.clientHeight || canvas.offsetHeight || 600;
+  if (w < 10) w = 800;
+  if (h < 10) h = 600;
+
+  console.log('[3D] 初始化场景, canvas尺寸:', w, 'x', h);
 
   // 场景
   threeScene = new THREE.Scene();
@@ -4016,10 +4063,14 @@ function init3DScene() {
   threeRenderer.setSize(w, h);
   threeRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
-  // 控制器
-  threeControls = new THREE.OrbitControls(threeCamera, canvas);
-  threeControls.enableDamping = true;
-  threeControls.dampingFactor = 0.08;
+  // 控制器（容错：OrbitControls 可能未加载）
+  if (THREE.OrbitControls) {
+    threeControls = new THREE.OrbitControls(threeCamera, canvas);
+    threeControls.enableDamping = true;
+    threeControls.dampingFactor = 0.08;
+  } else {
+    console.warn('[3D] OrbitControls 未加载，使用基础交互');
+  }
 
   // 光照
   threeScene.add(new THREE.AmbientLight(0x4a6fa5, 0.6));
@@ -4083,36 +4134,33 @@ function init3DScene() {
   oreMesh.userData = { name: 'I号矿体', type: 'ore' };
   threeScene.add(oreMesh);
 
-  // === 钻孔（红色标记球+柱体） ===
+  // === 默认钻孔 ===
   var drillPositions = [
-    { x: -80, z: -60, depth: 90 },
-    { x: -30, z: 40, depth: 110 },
-    { x: 20, z: -50, depth: 95 },
-    { x: 70, z: 30, depth: 120 },
-    { x: -60, z: 80, depth: 85 },
-    { x: 50, z: -80, depth: 100 }
+    { x: -80, z: -60, depth: 90, id: 'ZK001' },
+    { x: -30, z: 40, depth: 110, id: 'ZK002' },
+    { x: 20, z: -50, depth: 95, id: 'ZK003' },
+    { x: 70, z: 30, depth: 120, id: 'ZK004' },
+    { x: -60, z: 80, depth: 85, id: 'ZK005' },
+    { x: 50, z: -80, depth: 100, id: 'ZK006' }
   ];
 
   drillPositions.forEach(function(d, i) {
-    // 钻孔柱体
     var drillGeo = new THREE.CylinderGeometry(1.5, 1.5, d.depth, 8);
     var drillMat = new THREE.MeshPhongMaterial({ color: 0x444444 });
     var drill = new THREE.Mesh(drillGeo, drillMat);
     drill.position.set(d.x, -50 + d.depth / 2, d.z);
     threeScene.add(drill);
 
-    // 红色标记球（高于矿体 z=65m）
     var ballGeo = new THREE.SphereGeometry(4, 16, 12);
     var ballMat = new THREE.MeshPhongMaterial({
       color: 0xff3333, emissive: 0xff0000, emissiveIntensity: 0.5
     });
     var ball = new THREE.Mesh(ballGeo, ballMat);
     ball.position.set(d.x, 70, d.z);
-    ball.userData = { name: 'ZK00' + (i + 1), type: 'drill' };
+    ball.userData = { name: d.id, type: 'drill' };
     threeScene.add(ball);
     drillHoles.push(ball);
 
-    // 标记球发光环
     var ringGeo = new THREE.RingGeometry(5, 7, 16);
     var ringMat = new THREE.MeshBasicMaterial({ color: 0xff3333, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
     var ring = new THREE.Mesh(ringGeo, ringMat);
@@ -4160,6 +4208,7 @@ function init3DScene() {
   window.addEventListener('resize', function() {
     if (!threeCamera || !threeRenderer) return;
     var w = canvas.clientWidth, h = canvas.clientHeight;
+    if (w < 10 || h < 10) return;
     threeCamera.aspect = w / h;
     threeCamera.updateProjectionMatrix();
     threeRenderer.setSize(w, h);
@@ -5460,13 +5509,27 @@ function loadSampleData() {
   // 自动切换到3D视图并初始化场景
   setTimeout(function() {
     var nav3d = document.querySelectorAll('.nav-item')[2];
-    switchView('3d', nav3d);
+    if (nav3d) nav3d.click();
     setTimeout(function() {
       init3DScene();
-      addSampleDrillsTo3D();
-      showToast('3D模型已更新，可旋转查看17个钻孔', 'info');
-    }, 200);
-  }, 500);
+      // 再延迟一下确保canvas尺寸正确
+      setTimeout(function() {
+        addSampleDrillsTo3D();
+        // 强制调整尺寸
+        if (threeRenderer && threeCamera) {
+          var canvas = document.getElementById('threeCanvas');
+          var w = canvas.clientWidth || 800;
+          var h = canvas.clientHeight || 600;
+          if (w > 10 && h > 10) {
+            threeCamera.aspect = w / h;
+            threeCamera.updateProjectionMatrix();
+            threeRenderer.setSize(w, h);
+          }
+        }
+        showToast('3D模型已加载，可拖动旋转查看', 'info');
+      }, 300);
+    }, 300);
+  }, 600);
 }
 
 // 更新所有数据表格
