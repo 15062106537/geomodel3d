@@ -1,22 +1,18 @@
-// GeoModel3D Service Worker v3.0 — 增强离线缓存 + 自动更新
-const CACHE_NAME = 'geomodel3d-v7.0';
-const RUNTIME_CACHE = 'geomodel3d-runtime';
+// GeoModel3D Service Worker v8.0 — 强制更新缓存
+const CACHE_NAME = 'geomodel3d-v8.0';
+const RUNTIME_CACHE = 'geomodel3d-runtime-v8';
 
-// 核心静态资源（首次安装即缓存）
+// 核心静态资源
 const PRECACHE_ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './three.min.js',
-  './OrbitControls.js',
-  './leaflet.js',
-  './leaflet.css',
   './icons/icon-192.png',
   './icons/icon-512.png'
 ];
 
-// CDN 资源（运行时缓存，带过期时间）
-const CDN_HOSTS = ['unpkg.com', 'is.autonavi.com', 'autonavi.com', 'map.gtimg.com', 'gtimg.com', 'geo.datav.aliyun.com', 'tile.openstreetmap.org', 'basemaps.cartocdn.com', 'cartocdn.com', 'osm.tuna.tsinghua.edu.cn', 'server.arcgisonline.com', 'arcgisonline.com', 'cdn.jsdelivr.net', 'jsdelivr.net', 'supabase.co', 'supabase.net'];
+// CDN 资源
+const CDN_HOSTS = ['unpkg.com', 'is.autonavi.com', 'autonavi.com', 'map.gtimg.com', 'gtimg.com', 'geo.datav.aliyun.com', 'tile.openstreetmap.org', 'basemaps.cartocdn.com', 'cartocdn.com', 'osm.tuna.tsinghua.edu.cn', 'server.arcgisonline.com', 'arcgisonline.com', 'cdn.jsdelivr.net', 'jsdelivr.net', 'supabase.co', 'supabase.net', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
 // ===== 安装：预缓存核心资源 =====
 self.addEventListener('install', function(event) {
@@ -34,7 +30,7 @@ self.addEventListener('install', function(event) {
   self.skipWaiting();
 });
 
-// ===== 激活：清理旧缓存 + 通知客户端更新 =====
+// ===== 激活：清理所有旧缓存 =====
 self.addEventListener('activate', function(event) {
   event.waitUntil(
     caches.keys().then(function(keys) {
@@ -42,11 +38,11 @@ self.addEventListener('activate', function(event) {
         keys.filter(function(key) {
           return key !== CACHE_NAME && key !== RUNTIME_CACHE;
         }).map(function(key) {
+          console.log('[SW] 删除旧缓存:', key);
           return caches.delete(key);
         })
       );
     }).then(function() {
-      // 通知所有客户端有新版本
       return self.clients.matchAll().then(function(clients) {
         clients.forEach(function(client) {
           client.postMessage({ type: 'SW_UPDATED', version: CACHE_NAME });
@@ -57,27 +53,23 @@ self.addEventListener('activate', function(event) {
   self.clients.claim();
 });
 
-// 请求拦截：index.html 网络优先，其他按策略处理
+// 请求拦截
 self.addEventListener('fetch', function(event) {
   var url = new URL(event.request.url);
   var req = event.request;
 
-  // 跳过非 GET 请求
   if (req.method !== 'GET') return;
-  // 跳过 chrome-extension
   if (url.protocol === 'chrome-extension:') return;
-  // 跳过地图瓦片请求，让浏览器直接处理（避免SW干扰瓦片加载）
   if (url.pathname.includes('appmaptile') || url.pathname.includes('realtimerender') || url.pathname.match(/\/\d+\/\d+\/\d+\./)) return;
-  // 跳过 Supabase Auth API 请求，确保认证不受SW干扰
   if (url.hostname.includes('supabase.co') && (url.pathname.includes('/auth/v1/') || url.pathname.includes('/rest/v1/'))) return;
 
-  // index.html 始终网络优先，确保最新版本
-  if (url.pathname.endsWith('/') || url.pathname.endsWith('index.html')) {
+  // index.html 和导航请求：始终网络优先
+  if (url.pathname.endsWith('/') || url.pathname.endsWith('index.html') || req.mode === 'navigate') {
     event.respondWith(networkFirst(req));
     return;
   }
 
-  // CDN 资源：网络优先，缓存回退
+  // CDN 资源：网络优先
   var isCDN = CDN_HOSTS.some(function(host) {
     return url.hostname.includes(host);
   });
@@ -87,15 +79,13 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  // 本地资源：缓存优先，网络回退
+  // 本地资源：缓存优先
   event.respondWith(cacheFirst(req));
 });
 
-// 缓存优先策略
 function cacheFirst(request) {
   return caches.match(request).then(function(cached) {
     if (cached) return cached;
-
     return fetch(request).then(function(response) {
       if (!response || response.status !== 200 || response.type !== 'basic') {
         return response;
@@ -106,7 +96,6 @@ function cacheFirst(request) {
       });
       return response;
     }).catch(function() {
-      // 导航请求返回首页
       if (request.mode === 'navigate') {
         return caches.match('./index.html');
       }
@@ -115,7 +104,6 @@ function cacheFirst(request) {
   });
 }
 
-// 网络优先策略（CDN资源）
 function networkFirst(request) {
   return fetch(request).then(function(response) {
     if (response && response.status === 200) {
@@ -131,7 +119,6 @@ function networkFirst(request) {
   });
 }
 
-// ===== 消息处理：支持 skipWaiting 触发 =====
 self.addEventListener('message', function(event) {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
